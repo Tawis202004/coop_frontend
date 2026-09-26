@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://coop-backend-02.vercel.app' // แก้ไข URL ให้ถูกต้อง และตัด /student/login ออก
+  baseURL: '"https://coop-backend-02.vercel.app/student/login' 
 });
 
 api.interceptors.request.use((config) => {
