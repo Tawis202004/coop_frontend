@@ -985,8 +985,4 @@ const LoginPage = ({ onLogin }) => {
   );
 };
 
-const StudentDashboard = () => {
-  return <MainAppContainer />;
-};
-
-export default StudentDashboard;
+export default MainAppContainer;
