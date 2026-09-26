@@ -1,20 +1,9 @@
-import React from 'react';
+import StudentDashboard from './StudentDashboard'
 
 function App() {
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh', 
-      backgroundColor: '#111', 
-      color: '#fff', 
-      fontSize: '24px',
-      fontFamily: 'sans-serif'
-    }}>
-      <h1>✅ React บน Vercel ทำงานได้ปกติ!</h1>
-    </div>
-  );
+    <StudentDashboard />
+  )
 }
 
-export default App;
+export default App
