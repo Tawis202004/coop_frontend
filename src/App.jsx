@@ -1,9 +1,7 @@
-import StudentDashboard from './StudentDashboard'
+import MainAppContainer from './StudentDashboard';
 
 function App() {
-  return (
-    <StudentDashboard />
-  )
+  return <MainAppContainer />;
 }
 
-export default App
+export default App;
