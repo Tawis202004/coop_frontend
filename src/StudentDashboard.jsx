@@ -78,6 +78,8 @@ const apiService = {
       password: String(password),
     }),
 
+  getUsers: () => api.get("/users"),
+
   changeUserRole: (userId, role) =>
     api.put(`/users/${userId}/role`, {
       role,
@@ -1809,6 +1811,8 @@ const StudentApplication = () => {
 const CoordinatorManagement = ({ activeTab }) => {
   const [applications, setApplications] = useState([]);
   const [students, setStudents] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [usersError, setUsersError] = useState("");
   const [events, setEvents] = useState([]);
 
   const [loadingApplications, setLoadingApplications] =
@@ -2120,57 +2124,45 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // ดึงนักศึกษาทั้งหมด
   // -------------------------------------------------------
-  const fetchStudents =
-    async () => {
-      try {
-        setLoadingStudents(true);
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      setUsersError("");
+      const [studentsResult, usersResult] = await Promise.allSettled([
+        api.get("/students"),
+        apiService.getUsers(),
+      ]);
 
-        const response =
-          await api.get(
-            "/students"
-          );
-
-        console.log(
-          "STUDENTS API RESPONSE:",
-          response.data
+      if (studentsResult.status === "fulfilled") {
+        const payload = studentsResult.value.data;
+        setStudents(
+          Array.isArray(payload) ? payload :
+          Array.isArray(payload?.students) ? payload.students :
+          Array.isArray(payload?.data) ? payload.data : []
         );
-
-        let data = [];
-
-        if (
-          Array.isArray(
-            response.data
-          )
-        ) {
-          data = response.data;
-        } else if (
-          Array.isArray(
-            response.data?.students
-          )
-        ) {
-          data =
-            response.data.students;
-        } else if (
-          Array.isArray(
-            response.data?.data
-          )
-        ) {
-          data =
-            response.data.data;
-        }
-
-        setStudents(data);
-      } catch (error) {
-        console.error(
-          "Fetch Students Error:",
-          error
-        );
-
+      } else {
+        console.error("GET /students ERROR:", studentsResult.reason);
         setStudents([]);
-      } finally {
-        setLoadingStudents(false);
+        setError(getApiErrorMessage(studentsResult.reason));
       }
-    };
+
+      if (usersResult.status === "fulfilled") {
+        const payload = usersResult.value.data;
+        const userList =
+          Array.isArray(payload) ? payload :
+          Array.isArray(payload?.users) ? payload.users :
+          Array.isArray(payload?.data) ? payload.data : [];
+        setUsers(userList);
+        console.log("GET /users:", userList);
+      } else {
+        console.error("GET /users ERROR:", usersResult.reason);
+        setUsers([]);
+        setUsersError(getApiErrorMessage(usersResult.reason));
+      }
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
 
   // -------------------------------------------------------
   // โหลดข้อมูลเมื่อเข้าหน้าจัดการคำร้อง
@@ -2275,16 +2267,17 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // หา User ID ที่ endpoint /users/{userId}/role ต้องใช้
   // -------------------------------------------------------
-  const getRoleUserId = (student) => {
-    return (
-      student?.user_id ||
-      student?.userId ||
-      student?.user?.id ||
-      student?.account_id ||
-      student?.id ||
-      null
-    );
+  // จับคู่รหัสนักศึกษากับ username ของบัญชี User จริง
+  // ห้ามใช้ student.id เพราะเป็น primary key ของตาราง students
+  const getStudentUser = (student) => {
+    const username = String(student?.student_id ?? "").trim();
+    if (!username) return null;
+    return users.find(
+      (user) => String(user?.username ?? "").trim() === username
+    ) || null;
   };
+
+  const getRoleUserId = (student) => getStudentUser(student)?.id ?? null;
 
   // -------------------------------------------------------
   // เริ่มแก้ไข Role
@@ -2295,7 +2288,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
     if (!userId) {
       alert(
-        "ไม่พบ User ID สำหรับแก้ไข Role\nกรุณาตรวจสอบข้อมูลจาก GET /students"
+        "ไม่พบบัญชี User ที่ตรงกับรหัสนักศึกษา สำหรับแก้ไข Role\nกรุณาตรวจสอบว่ามีบัญชี username ตรงกับรหัสนักศึกษาใน GET /users"
       );
       return;
     }
@@ -2305,8 +2298,7 @@ const CoordinatorManagement = ({ activeTab }) => {
     );
 
     setSelectedRole(
-      student?.role ||
-      student?.user?.role ||
+      getStudentUser(student)?.role ||
       "student"
     );
   };
@@ -2321,7 +2313,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
       if (!userId) {
         alert(
-          "ไม่พบ User ID สำหรับแก้ไข Role"
+          "ไม่พบบัญชี User ที่ตรงกับรหัสนักศึกษา สำหรับแก้ไข Role"
         );
         return;
       }
@@ -2941,9 +2933,8 @@ const CoordinatorManagement = ({ activeTab }) => {
                         );
 
                       const currentRole =
-                        student.role ||
-                        student?.user?.role ||
-                        "student";
+                        getStudentUser(student)?.role ||
+                        "ไม่พบบัญชี";
 
                       const isEditingRole =
                         roleUserId &&
@@ -3094,7 +3085,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                             {!roleUserId && (
                               <p className="text-[10px] text-amber-600 font-bold text-center mt-1">
-                                ไม่พบ User ID
+                                ไม่พบบัญชี User
                               </p>
                             )}
 
