@@ -202,10 +202,120 @@ const getApiErrorMessage = (
   error,
   fallback = "เกิดข้อผิดพลาด"
 ) => {
+  const data = error?.response?.data;
+
+  const stringifyValue = (value) => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => stringifyValue(item))
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    if (typeof value === "object") {
+      // FastAPI validation error:
+      // { loc: [...], msg: "...", type: "..." }
+      if (value.msg !== undefined) {
+        const field =
+          Array.isArray(value.loc)
+            ? value.loc
+                .filter(
+                  (part) =>
+                    part !== "body"
+                )
+                .join(".")
+            : "";
+
+        const message =
+          stringifyValue(value.msg);
+
+        return field
+          ? `${field}: ${message}`
+          : message;
+      }
+
+      if (value.message !== undefined) {
+        return stringifyValue(
+          value.message
+        );
+      }
+
+      if (value.detail !== undefined) {
+        return stringifyValue(
+          value.detail
+        );
+      }
+
+      if (value.error !== undefined) {
+        return stringifyValue(
+          value.error
+        );
+      }
+
+      try {
+        return JSON.stringify(
+          value,
+          null,
+          2
+        );
+      } catch {
+        return String(value);
+      }
+    }
+
+    return String(value);
+  };
+
+  if (!data) {
+    return (
+      error?.message ||
+      fallback
+    );
+  }
+
+  if (typeof data === "string") {
+    return data;
+  }
+
+  const detailMessage =
+    stringifyValue(data.detail);
+
+  if (detailMessage) {
+    return detailMessage;
+  }
+
+  const message =
+    stringifyValue(data.message);
+
+  if (message) {
+    return message;
+  }
+
+  const errorMessage =
+    stringifyValue(data.error);
+
+  if (errorMessage) {
+    return errorMessage;
+  }
+
+  const wholeResponse =
+    stringifyValue(data);
+
   return (
-    error?.response?.data?.detail ||
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
+    wholeResponse ||
+    error?.message ||
     fallback
   );
 };
