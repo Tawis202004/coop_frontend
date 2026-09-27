@@ -1661,107 +1661,61 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // แปลง Error จาก FastAPI ไม่ให้กลายเป็น [object Object]
   // -------------------------------------------------------
-  const getApiErrorMessage = (error) => {
-    const data = error?.response?.data;
+const getApiErrorMessage = (
+  error,
+  fallback = "เกิดข้อผิดพลาด"
+) => {
+  const data = error?.response?.data;
 
-    if (!data) {
-      return (
-        error?.message ||
-        "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"
-      );
-    }
+  if (!data) {
+    return error?.message || fallback;
+  }
 
-    if (typeof data === "string") {
-      return data;
-    }
+  if (typeof data === "string") {
+    return data;
+  }
 
-    if (typeof data.detail === "string") {
-      return data.detail;
-    }
+  const detail = data.detail;
 
-    if (Array.isArray(data.detail)) {
-      return data.detail
-        .map((item) => {
-          if (typeof item === "string") {
-            return item;
-          }
+  if (typeof detail === "string") {
+    return detail;
+  }
 
-          if (item?.msg) {
-            const field = Array.isArray(item.loc)
-              ? item.loc.join(".")
-              : "";
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
 
-            return field
-              ? `${field}: ${item.msg}`
-              : item.msg;
-          }
+        if (item?.msg) {
+          return item.msg;
+        }
 
-          return JSON.stringify(item);
-        })
-        .join("\n");
-    }
+        return JSON.stringify(item);
+      })
+      .join("\n");
+  }
 
-    if (data.message) {
-      return typeof data.message === "string"
-        ? data.message
-        : JSON.stringify(data.message, null, 2);
-    }
+  if (detail && typeof detail === "object") {
+    return (
+      detail.message ||
+      detail.msg ||
+      detail.error ||
+      JSON.stringify(detail)
+    );
+  }
 
-    if (data.error) {
-      return typeof data.error === "string"
-        ? data.error
-        : JSON.stringify(data.error, null, 2);
-    }
+  if (typeof data.message === "string") {
+    return data.message;
+  }
 
-    return JSON.stringify(data, null, 2);
-  };
+  if (typeof data.error === "string") {
+    return data.error;
+  }
 
-  // -------------------------------------------------------
-  // แปลงข้อมูลที่อาจเป็น object ให้แสดงเป็นข้อความ
-  // -------------------------------------------------------
-  const displayValue = (
-    value,
-    fallback = "-"
-  ) => {
-    if (
-      value === null ||
-      value === undefined ||
-      value === ""
-    ) {
-      return fallback;
-    }
-
-    if (
-      typeof value === "string" ||
-      typeof value === "number"
-    ) {
-      return String(value);
-    }
-
-    if (Array.isArray(value)) {
-      return value
-        .map((item) =>
-          displayValue(item, "")
-        )
-        .filter(Boolean)
-        .join(", ");
-    }
-
-    if (typeof value === "object") {
-      return (
-        value.name ||
-        value.company_name ||
-        value.full_name ||
-        value.first_name ||
-        value.username ||
-        value.student_id ||
-        value.id ||
-        "-"
-      );
-    }
-
-    return String(value);
-  };
+  return fallback;
+};
 
   // -------------------------------------------------------
   // ดึงชื่อจาก object นักศึกษา
