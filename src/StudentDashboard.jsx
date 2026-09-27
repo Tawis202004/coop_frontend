@@ -1822,6 +1822,16 @@ const CoordinatorManagement = ({ activeTab }) => {
 
   const [error, setError] = useState("");
 
+  // Role editing for Coordinator > All Students
+  const [editingRoleId, setEditingRoleId] =
+    useState(null);
+
+  const [selectedRole, setSelectedRole] =
+    useState("student");
+
+  const [savingRole, setSavingRole] =
+    useState(false);
+
   // -------------------------------------------------------
   // แปลง Error จาก FastAPI ไม่ให้กลายเป็น [object Object]
   // -------------------------------------------------------
@@ -2259,6 +2269,107 @@ const CoordinatorManagement = ({ activeTab }) => {
             error
           )}`
         );
+      }
+    };
+
+  // -------------------------------------------------------
+  // หา User ID ที่ endpoint /users/{userId}/role ต้องใช้
+  // -------------------------------------------------------
+  const getRoleUserId = (student) => {
+    return (
+      student?.user_id ||
+      student?.userId ||
+      student?.user?.id ||
+      student?.account_id ||
+      student?.id ||
+      null
+    );
+  };
+
+  // -------------------------------------------------------
+  // เริ่มแก้ไข Role
+  // -------------------------------------------------------
+  const startEditRole = (student) => {
+    const userId =
+      getRoleUserId(student);
+
+    if (!userId) {
+      alert(
+        "ไม่พบ User ID สำหรับแก้ไข Role\nกรุณาตรวจสอบข้อมูลจาก GET /students"
+      );
+      return;
+    }
+
+    setEditingRoleId(
+      String(userId)
+    );
+
+    setSelectedRole(
+      student?.role ||
+      student?.user?.role ||
+      "student"
+    );
+  };
+
+  // -------------------------------------------------------
+  // บันทึก Role
+  // -------------------------------------------------------
+  const handleSaveRole =
+    async (student) => {
+      const userId =
+        getRoleUserId(student);
+
+      if (!userId) {
+        alert(
+          "ไม่พบ User ID สำหรับแก้ไข Role"
+        );
+        return;
+      }
+
+      if (!selectedRole) {
+        alert(
+          "กรุณาเลือก Role"
+        );
+        return;
+      }
+
+      try {
+        setSavingRole(true);
+
+        console.log(
+          "CHANGE ROLE REQUEST:",
+          {
+            userId,
+            role: selectedRole,
+            student,
+          }
+        );
+
+        await apiService.changeUserRole(
+          userId,
+          selectedRole
+        );
+
+        alert(
+          "แก้ไข Role เรียบร้อยแล้ว"
+        );
+
+        setEditingRoleId(null);
+
+        await fetchStudents();
+      } catch (error) {
+        console.error(
+          "Change User Role Error:",
+          error
+        );
+
+        alert(
+          `ไม่สามารถแก้ไข Role ได้\n\n${getApiErrorMessage(
+            error
+          )}`
+        );
+      } finally {
+        setSavingRole(false);
       }
     };
 
@@ -2772,6 +2883,10 @@ const CoordinatorManagement = ({ activeTab }) => {
                     Role
                   </th>
 
+                  <th className="pb-3 text-center">
+                    จัดการ
+                  </th>
+
                 </tr>
 
               </thead>
@@ -2782,7 +2897,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="4"
+                      colSpan="5"
                       className="py-10 text-center text-gray-400"
                     >
                       กำลังโหลดข้อมูล...
@@ -2793,7 +2908,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="4"
+                      colSpan="5"
                       className="py-10 text-center text-gray-400"
                     >
                       ไม่พบข้อมูลนักศึกษา
@@ -2819,6 +2934,23 @@ const CoordinatorManagement = ({ activeTab }) => {
                         student.name ||
                         student.username ||
                         "-";
+
+                      const roleUserId =
+                        getRoleUserId(
+                          student
+                        );
+
+                      const currentRole =
+                        student.role ||
+                        student?.user?.role ||
+                        "student";
+
+                      const isEditingRole =
+                        roleUserId &&
+                        editingRoleId ===
+                          String(
+                            roleUserId
+                          );
 
                       return (
                         <tr
@@ -2852,8 +2984,120 @@ const CoordinatorManagement = ({ activeTab }) => {
                           </td>
 
                           <td className="py-4">
-                            {student.role ||
-                              "student"}
+
+                            {isEditingRole ? (
+                              <select
+                                value={
+                                  selectedRole
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  setSelectedRole(
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                className="border border-gray-200 rounded-xl px-3 py-2 bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-[#800000]/20"
+                              >
+                                <option value="student">
+                                  student
+                                </option>
+
+                                <option value="teacher">
+                                  teacher
+                                </option>
+
+                                <option value="coordinator">
+                                  coordinator
+                                </option>
+                              </select>
+                            ) : (
+                              <span className="inline-flex px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-black">
+                                {
+                                  currentRole
+                                }
+                              </span>
+                            )}
+
+                          </td>
+
+                          <td className="py-4">
+
+                            <div className="flex items-center justify-center gap-2">
+
+                              {isEditingRole ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleSaveRole(
+                                        student
+                                      )
+                                    }
+                                    disabled={
+                                      savingRole
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 disabled:opacity-50"
+                                  >
+                                    <Save
+                                      size={
+                                        15
+                                      }
+                                    />
+                                    {savingRole
+                                      ? "กำลังบันทึก..."
+                                      : "บันทึก"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditingRoleId(
+                                        null
+                                      )
+                                    }
+                                    disabled={
+                                      savingRole
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-black hover:bg-gray-200 disabled:opacity-50"
+                                  >
+                                    <X
+                                      size={
+                                        15
+                                      }
+                                    />
+                                    ยกเลิก
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    startEditRole(
+                                      student
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#800000] text-white text-xs font-black hover:bg-[#660000]"
+                                >
+                                  <Pencil
+                                    size={
+                                      15
+                                    }
+                                  />
+                                  แก้ไข Role
+                                </button>
+                              )}
+
+                            </div>
+
+                            {!roleUserId && (
+                              <p className="text-[10px] text-amber-600 font-bold text-center mt-1">
+                                ไม่พบ User ID
+                              </p>
+                            )}
+
                           </td>
 
                         </tr>
