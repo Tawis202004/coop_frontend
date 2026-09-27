@@ -1642,353 +1642,444 @@ const StudentApplication = () => {
 // COORDINATOR MANAGEMENT
 // ============================================================
 
-const CoordinatorManagement = ({
-  activeTab,
-}) => {
-  const [students, setStudents] =
-    useState([]);
+const CoordinatorManagement = ({ activeTab }) => {
+  const [applications, setApplications] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [events, setEvents] = useState([]);
 
-  const [applications, setApplications] =
-    useState([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
-  const [dashboard, setDashboard] =
-    useState(null);
+  const [error, setError] = useState('');
 
-  const [loadingStudents, setLoadingStudents] =
-    useState(false);
+  // -------------------------------------------------------
+  // แปลง Error จาก FastAPI ไม่ให้กลายเป็น [object Object]
+  // -------------------------------------------------------
+  const getApiErrorMessage = (error) => {
+    const data = error?.response?.data;
 
-  const [loadingApplications, setLoadingApplications] =
-    useState(false);
+    if (!data) {
+      return error?.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+    }
 
-  const [loadingDashboard, setLoadingDashboard] =
-    useState(false);
+    if (typeof data === 'string') {
+      return data;
+    }
 
-  // ----------------------------------------------------------
-  // FETCH ADMIN DASHBOARD
-  // ----------------------------------------------------------
+    if (typeof data.detail === 'string') {
+      return data.detail;
+    }
 
-  const fetchDashboard = async () => {
-    try {
-      setLoadingDashboard(true);
+    if (Array.isArray(data.detail)) {
+      return data.detail
+        .map((item) => {
+          if (typeof item === 'string') return item;
 
-      const response =
-        await apiService.getAdminDashboard();
+          if (item?.msg) {
+            const field = Array.isArray(item.loc)
+              ? item.loc.join('.')
+              : '';
 
-      setDashboard(response.data);
-    } catch (error) {
-      console.error(
-        "Admin dashboard:",
-        error
+            return field
+              ? `${field}: ${item.msg}`
+              : item.msg;
+          }
+
+          return JSON.stringify(item);
+        })
+        .join('\n');
+    }
+
+    if (data.message) {
+      return typeof data.message === 'string'
+        ? data.message
+        : JSON.stringify(data.message, null, 2);
+    }
+
+    if (data.error) {
+      return typeof data.error === 'string'
+        ? data.error
+        : JSON.stringify(data.error, null, 2);
+    }
+
+    return JSON.stringify(data, null, 2);
+  };
+
+  // -------------------------------------------------------
+  // แปลงข้อมูลที่อาจเป็น object ให้แสดงเป็นข้อความ
+  // -------------------------------------------------------
+  const displayValue = (value, fallback = '-') => {
+    if (value === null || value === undefined || value === '') {
+      return fallback;
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => displayValue(item, ''))
+        .filter(Boolean)
+        .join(', ');
+    }
+
+    if (typeof value === 'object') {
+      return (
+        value.name ||
+        value.company_name ||
+        value.full_name ||
+        value.first_name ||
+        value.username ||
+        value.student_id ||
+        value.id ||
+        '-'
       );
+    }
+
+    return String(value);
+  };
+
+  // -------------------------------------------------------
+  // ดึงชื่อจาก object นักศึกษา
+  // -------------------------------------------------------
+  const getStudentName = (application) => {
+    const student =
+      application.student ||
+      application.user ||
+      application.student_profile ||
+      null;
+
+    if (application.student_name) {
+      return displayValue(application.student_name);
+    }
+
+    if (application.full_name) {
+      return displayValue(application.full_name);
+    }
+
+    if (student) {
+      if (student.full_name) {
+        return displayValue(student.full_name);
+      }
+
+      if (student.first_name || student.last_name) {
+        return [
+          student.first_name,
+          student.last_name
+        ]
+          .filter(Boolean)
+          .join(' ');
+      }
+
+      if (student.name) {
+        return displayValue(student.name);
+      }
+
+      if (student.username) {
+        return displayValue(student.username);
+      }
+    }
+
+    return '-';
+  };
+
+  // -------------------------------------------------------
+  // ดึงรหัสนักศึกษา
+  // -------------------------------------------------------
+  const getStudentId = (application) => {
+    const student =
+      application.student ||
+      application.user ||
+      application.student_profile ||
+      null;
+
+    return displayValue(
+      application.student_id ||
+      application.studentId ||
+      student?.student_id ||
+      student?.studentId ||
+      student?.id,
+      '-'
+    );
+  };
+
+  // -------------------------------------------------------
+  // ดึงสาขา
+  // -------------------------------------------------------
+  const getMajor = (application) => {
+    const student =
+      application.student ||
+      application.user ||
+      application.student_profile ||
+      null;
+
+    return displayValue(
+      application.major ||
+      application.student_major ||
+      student?.major ||
+      student?.program ||
+      student?.department,
+      '-'
+    );
+  };
+
+  // -------------------------------------------------------
+  // ดึงบริษัท
+  // -------------------------------------------------------
+  const getCompanyName = (application) => {
+    const company =
+      application.company ||
+      application.company_data ||
+      null;
+
+    return displayValue(
+      application.company_name ||
+      application.companyName ||
+      company?.company_name ||
+      company?.name ||
+      application.company_id,
+      '-'
+    );
+  };
+
+  // -------------------------------------------------------
+  // ดึงสถานะ
+  // -------------------------------------------------------
+  const getApplicationStatus = (application) => {
+    return (
+      application.status ||
+      application.application_status ||
+      application.approval_status ||
+      'pending'
+    );
+  };
+
+  // -------------------------------------------------------
+  // ดึง Applications
+  // -------------------------------------------------------
+  const fetchApplications = async () => {
+    try {
+      setLoadingApplications(true);
+      setError('');
+
+      const response = await api.get('/applications');
+
+      console.log('APPLICATION API RESPONSE:', response.data);
+
+      let data = [];
+
+      if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (Array.isArray(response.data?.applications)) {
+        data = response.data.applications;
+      } else if (Array.isArray(response.data?.data)) {
+        data = response.data.data;
+      } else if (response.data) {
+        data = [response.data];
+      }
+
+      setApplications(data);
+
+    } catch (error) {
+      console.error('Fetch Applications Error:', error);
+
+      setError(getApiErrorMessage(error));
+      setApplications([]);
     } finally {
-      setLoadingDashboard(false);
+      setLoadingApplications(false);
     }
   };
 
-  // ----------------------------------------------------------
-  // FETCH STUDENTS
-  // ----------------------------------------------------------
-
+  // -------------------------------------------------------
+  // ดึงนักศึกษาทั้งหมด
+  // -------------------------------------------------------
   const fetchStudents = async () => {
     try {
       setLoadingStudents(true);
 
-      const response =
-        await apiService.getAllStudents();
+      const response = await api.get('/students');
 
-      setStudents(
-        normalizeList(
-          response.data,
-          [
-            "students",
-            "data",
-            "items",
-          ]
-        )
-      );
+      console.log('STUDENTS API RESPONSE:', response.data);
+
+      let data = [];
+
+      if (Array.isArray(response.data)) {
+        data = response.data;
+      } else if (Array.isArray(response.data?.students)) {
+        data = response.data.students;
+      } else if (Array.isArray(response.data?.data)) {
+        data = response.data.data;
+      }
+
+      setStudents(data);
+
     } catch (error) {
-      console.error(
-        "Students:",
-        error
-      );
-
-      alert(
-        getApiErrorMessage(
-          error,
-          "ไม่สามารถโหลดข้อมูลนักศึกษาได้"
-        )
-      );
+      console.error('Fetch Students Error:', error);
+      setStudents([]);
     } finally {
       setLoadingStudents(false);
     }
   };
 
-  // ----------------------------------------------------------
-  // FETCH APPLICATIONS
-  // ----------------------------------------------------------
-
-  const fetchApplications =
-    async () => {
-      try {
-        setLoadingApplications(true);
-
-        const response =
-          await apiService.getApplications();
-
-        setApplications(
-          normalizeList(
-            response.data,
-            [
-              "applications",
-              "data",
-              "items",
-            ]
-          )
-        );
-      } catch (error) {
-        console.error(
-          "Applications:",
-          error
-        );
-
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถโหลดคำร้องได้"
-          )
-        );
-      } finally {
-        setLoadingApplications(false);
-      }
-    };
-
+  // -------------------------------------------------------
+  // โหลดข้อมูลเมื่อเข้าหน้าจัดการคำร้อง
+  // -------------------------------------------------------
   useEffect(() => {
-    fetchDashboard();
-
-    if (
-      activeTab ===
-      "manage_requests"
-    ) {
+    if (activeTab === 'manage_requests') {
       fetchApplications();
     }
 
-    if (
-      activeTab ===
-      "all_students"
-    ) {
+    if (activeTab === 'all_students') {
       fetchStudents();
     }
   }, [activeTab]);
 
-  // ----------------------------------------------------------
-  // APPROVE
-  // ----------------------------------------------------------
+  // -------------------------------------------------------
+  // อนุมัติคำร้อง
+  // -------------------------------------------------------
+  const handleApprove = async (applicationId) => {
+    if (!applicationId) {
+      alert('ไม่พบ ID ของคำร้อง');
+      return;
+    }
 
-  const approveApplication =
-    async (applicationId) => {
-      if (!applicationId) {
-        alert(
-          "ไม่พบ Application ID"
-        );
-        return;
-      }
+    try {
+      await api.put(
+        `/applications/${applicationId}/approve`
+      );
 
-      try {
-        await apiService.approveApplication(
-          applicationId
-        );
+      alert('อนุมัติคำร้องเรียบร้อยแล้ว');
 
-        await fetchApplications();
-        await fetchDashboard();
+      await fetchApplications();
 
-        alert(
-          "อนุมัติคำร้องเรียบร้อยแล้ว"
-        );
-      } catch (error) {
-        console.error(error);
+    } catch (error) {
+      console.error('Approve Error:', error);
 
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถอนุมัติคำร้องได้"
-          )
-        );
-      }
-    };
+      alert(
+        `ไม่สามารถอนุมัติคำร้องได้\n\n${getApiErrorMessage(error)}`
+      );
+    }
+  };
 
-  // ----------------------------------------------------------
-  // REJECT
-  // ----------------------------------------------------------
+  // -------------------------------------------------------
+  // ปฏิเสธคำร้อง
+  // -------------------------------------------------------
+  const handleReject = async (applicationId) => {
+    if (!applicationId) {
+      alert('ไม่พบ ID ของคำร้อง');
+      return;
+    }
 
-  const rejectApplication =
-    async (applicationId) => {
-      if (!applicationId) {
-        alert(
-          "ไม่พบ Application ID"
-        );
-        return;
-      }
+    const confirmReject = window.confirm(
+      'คุณต้องการปฏิเสธคำร้องนี้ใช่หรือไม่?'
+    );
 
-      try {
-        await apiService.rejectApplication(
-          applicationId
-        );
+    if (!confirmReject) {
+      return;
+    }
 
-        await fetchApplications();
-        await fetchDashboard();
+    try {
+      await api.put(
+        `/applications/${applicationId}/reject`
+      );
 
-        alert(
-          "ปฏิเสธคำร้องเรียบร้อยแล้ว"
-        );
-      } catch (error) {
-        console.error(error);
+      alert('ปฏิเสธคำร้องเรียบร้อยแล้ว');
 
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถปฏิเสธคำร้องได้"
-          )
-        );
-      }
-    };
+      await fetchApplications();
 
-  // ----------------------------------------------------------
-  // DELETE STUDENT
-  // ----------------------------------------------------------
+    } catch (error) {
+      console.error('Reject Error:', error);
 
-  const deleteStudent =
-    async (studentId) => {
-      if (!studentId) {
-        alert(
-          "ไม่พบ Student ID"
-        );
-        return;
-      }
+      alert(
+        `ไม่สามารถปฏิเสธคำร้องได้\n\n${getApiErrorMessage(error)}`
+      );
+    }
+  };
 
-      if (
-        !window.confirm(
-          "ต้องการลบนักศึกษาคนนี้หรือไม่?"
-        )
-      ) {
-        return;
-      }
+  // -------------------------------------------------------
+  // แสดงสถานะ
+  // -------------------------------------------------------
+  const renderStatus = (status) => {
+    const normalized = String(status || '')
+      .toLowerCase()
+      .trim();
 
-      try {
-        await apiService.deleteStudent(
-          studentId
-        );
+    if (
+      normalized === 'approved' ||
+      normalized === 'approve' ||
+      normalized === 'accepted'
+    ) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
+          อนุมัติแล้ว
+        </span>
+      );
+    }
 
-        await fetchStudents();
-        await fetchDashboard();
+    if (
+      normalized === 'rejected' ||
+      normalized === 'reject' ||
+      normalized === 'denied'
+    ) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-black bg-red-50 text-red-600 border border-red-100">
+          ปฏิเสธ
+        </span>
+      );
+    }
 
-        alert(
-          "ลบนักศึกษาเรียบร้อยแล้ว"
-        );
-      } catch (error) {
-        console.error(error);
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-600 border border-amber-100">
+        รอตรวจสอบ
+      </span>
+    );
+  };
 
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถลบนักศึกษาได้"
-          )
-        );
-      }
-    };
-
-  // ----------------------------------------------------------
-  // CHANGE ROLE
-  // ----------------------------------------------------------
-
-  const handleRoleChange =
-    async (
-      userId,
-      newRole
-    ) => {
-      if (!userId) {
-        alert(
-          "ไม่พบ User ID"
-        );
-        return;
-      }
-
-      try {
-        await apiService.changeUserRole(
-          userId,
-          newRole
-        );
-
-        await fetchStudents();
-
-        alert(
-          "เปลี่ยน Role เรียบร้อยแล้ว"
-        );
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถเปลี่ยน Role ได้"
-          )
-        );
-      }
-    };
-
-  // ==========================================================
+  // =======================================================
   // MANAGE REQUESTS
-  // ==========================================================
+  // =======================================================
+  if (activeTab === 'manage_requests') {
+    const approvedCount = applications.filter((item) => {
+      const status = String(getApplicationStatus(item)).toLowerCase();
 
-  if (
-    activeTab ===
-    "manage_requests"
-  ) {
-    const approvedCount =
-      applications.filter(
-        (item) =>
-          String(
-            item.status || ""
-          ).toLowerCase() ===
-          "approved"
-      ).length;
+      return (
+        status === 'approved' ||
+        status === 'approve' ||
+        status === 'accepted'
+      );
+    }).length;
 
-    const waitingCount =
-      applications.filter(
-        (item) => {
-          const status =
-            String(
-              item.status || ""
-            ).toLowerCase();
+    const pendingCount = applications.filter((item) => {
+      const status = String(getApplicationStatus(item)).toLowerCase();
 
-          return (
-            status === "wait" ||
-            status ===
-              "pending" ||
-            status ===
-              "รอตรวจสอบ" ||
-            !status
-          );
-        }
-      ).length;
+      return (
+        status === 'pending' ||
+        status === 'wait' ||
+        status === 'waiting'
+      );
+    }).length;
 
-    const rejectedCount =
-      applications.filter(
-        (item) =>
-          String(
-            item.status || ""
-          ).toLowerCase() ===
-          "rejected"
-      ).length;
+    const rejectedCount = applications.filter((item) => {
+      const status = String(getApplicationStatus(item)).toLowerCase();
+
+      return (
+        status === 'rejected' ||
+        status === 'reject' ||
+        status === 'denied'
+      );
+    }).length;
 
     return (
       <div className="space-y-6">
 
-        {/* STATISTICS */}
-
+        {/* ================================================
+            STATISTICS
+        ================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <div className="bg-white p-5 rounded-3xl border border-emerald-100 flex items-center justify-between shadow-sm">
-
             <div>
               <p className="text-xs font-black text-emerald-600">
                 อนุมัติแล้ว
@@ -1996,41 +2087,37 @@ const CoordinatorManagement = ({
 
               <h4 className="text-2xl font-black text-emerald-700 mt-1">
                 {approvedCount}
-                <span className="text-xs ml-1 text-gray-400">
+                <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
               </h4>
             </div>
 
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <CheckCircle2 size={20} />
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black">
+              OK
             </div>
-
           </div>
 
           <div className="bg-white p-5 rounded-3xl border border-amber-100 flex items-center justify-between shadow-sm">
-
             <div>
               <p className="text-xs font-black text-amber-600">
                 รอตรวจสอบ
               </p>
 
               <h4 className="text-2xl font-black text-amber-700 mt-1">
-                {waitingCount}
-                <span className="text-xs ml-1 text-gray-400">
+                {pendingCount}
+                <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
               </h4>
             </div>
 
-            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-              <Clock size={20} />
+            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-black">
+              WAIT
             </div>
-
           </div>
 
           <div className="bg-white p-5 rounded-3xl border border-red-100 flex items-center justify-between shadow-sm">
-
             <div>
               <p className="text-xs font-black text-red-600">
                 ปฏิเสธ
@@ -2038,152 +2125,255 @@ const CoordinatorManagement = ({
 
               <h4 className="text-2xl font-black text-red-700 mt-1">
                 {rejectedCount}
-                <span className="text-xs ml-1 text-gray-400">
+                <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
               </h4>
             </div>
 
-            <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
-              <X size={20} />
+            <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-black">
+              REJ
             </div>
-
           </div>
 
         </div>
 
-        {/* APPLICATION TABLE */}
-
+        {/* ================================================
+            APPLICATION TABLE
+        ================================================= */}
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
 
-          <h3 className="text-[#800000] font-black flex items-center gap-2 text-lg mb-6">
-            <ClipboardCheck size={24} />
-            จัดการและอนุมัติคำร้อง
-          </h3>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
 
-          {loadingApplications ? (
-            <LoadingBox text="กำลังโหลดคำร้อง..." />
-          ) : applications.length ===
-            0 ? (
-            <div className="text-center py-10 text-gray-400 font-bold">
-              ไม่มีคำร้อง
+            <div>
+              <h3 className="text-[#800000] font-black flex items-center gap-2 text-lg">
+                <ClipboardCheck size={24} />
+                จัดการและอนุมัติคำร้องเลือกสถานประกอบการ
+              </h3>
+
+              <p className="text-xs text-gray-400 font-bold mt-1">
+                ข้อมูลจากระบบ Applications
+              </p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
 
-              <table className="w-full text-left border-collapse">
+            <button
+              onClick={fetchApplications}
+              disabled={loadingApplications}
+              className="px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-xl text-xs font-black text-gray-600"
+            >
+              {loadingApplications
+                ? 'กำลังโหลด...'
+                : 'รีเฟรชข้อมูล'}
+            </button>
 
-                <thead>
-                  <tr className="border-b border-gray-100 text-xs font-black text-gray-400">
-                    <th className="pb-3">
-                      รหัสนักศึกษา
-                    </th>
+          </div>
 
-                    <th className="pb-3">
-                      ชื่อ
-                    </th>
+          {/* ERROR */}
+          {error && (
+            <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl text-sm font-bold text-red-600 whitespace-pre-line">
+              {error}
+            </div>
+          )}
 
-                    <th className="pb-3">
-                      สาขา
-                    </th>
+          <div className="overflow-x-auto">
 
-                    <th className="pb-3">
-                      บริษัท
-                    </th>
+            <table className="w-full text-left border-collapse">
 
-                    <th className="pb-3 text-center">
-                      สถานะ
-                    </th>
+              <thead>
 
-                    <th className="pb-3 text-right">
-                      จัดการ
-                    </th>
+                <tr className="border-b border-gray-100 text-xs font-black text-gray-400 uppercase tracking-wider">
+
+                  <th className="pb-3 pr-4">
+                    รหัสนักศึกษา
+                  </th>
+
+                  <th className="pb-3 pr-4">
+                    ชื่อ
+                  </th>
+
+                  <th className="pb-3 pr-4">
+                    สาขา
+                  </th>
+
+                  <th className="pb-3 pr-4">
+                    บริษัท
+                  </th>
+
+                  <th className="pb-3 pr-4 text-center">
+                    สถานะ
+                  </th>
+
+                  <th className="pb-3 text-right">
+                    การจัดการ
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody className="text-sm font-bold text-gray-700 divide-y divide-gray-50">
+
+                {loadingApplications ? (
+
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="py-12 text-center text-gray-400"
+                    >
+                      กำลังโหลดข้อมูลคำร้อง...
+                    </td>
                   </tr>
-                </thead>
 
-                <tbody className="text-sm font-bold text-gray-700 divide-y divide-gray-50">
+                ) : applications.length === 0 ? (
 
-                  {applications.map(
-                    (application) => {
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="py-12 text-center"
+                    >
+                      <div className="text-gray-300 mb-2">
+                        <ClipboardCheck
+                          size={40}
+                          className="mx-auto"
+                        />
+                      </div>
 
-                      const id =
-                        application.id ||
-                        application.application_id;
+                      <p className="text-gray-400 font-black">
+                        ยังไม่มีคำร้องสถานประกอบการ
+                      </p>
 
-                      return (
-                        <tr
-                          key={id}
-                          className="hover:bg-gray-50"
-                        >
+                      <p className="text-xs text-gray-300 mt-1">
+                        เมื่อมีนักศึกษายื่นคำร้อง ข้อมูลจะแสดงที่นี่
+                      </p>
+                    </td>
+                  </tr>
 
-                          <td className="py-4">
-                            {application.student_id ||
-                              "-"}
-                          </td>
+                ) : (
 
-                          <td className="py-4">
-                            {application.student_name ||
-                              application.name ||
-                              "-"}
-                          </td>
+                  applications.map((application, index) => {
 
-                          <td className="py-4">
-                            {application.major ||
-                              "-"}
-                          </td>
+                    const applicationId =
+                      application.id ||
+                      application.application_id ||
+                      application.applicationId;
 
-                          <td className="py-4 font-black text-[#800000]">
-                            {application.company_name ||
-                              application.company ||
-                              "-"}
-                          </td>
+                    const status =
+                      getApplicationStatus(application);
 
-                          <td className="py-4 text-center">
+                    const studentName =
+                      getStudentName(application);
 
-                            <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-600 border border-amber-100">
-                              {application.status ||
-                                "รอตรวจสอบ"}
-                            </span>
+                    const studentId =
+                      getStudentId(application);
 
-                          </td>
+                    const major =
+                      getMajor(application);
 
-                          <td className="py-4 text-right space-x-2">
+                    const companyName =
+                      getCompanyName(application);
+
+                    return (
+                      <tr
+                        key={
+                          applicationId ||
+                          `application-${index}`
+                        }
+                        className="hover:bg-gray-50/50 transition-colors"
+                      >
+
+                        {/* STUDENT ID */}
+                        <td className="py-4 pr-4">
+
+                          <span className="font-mono text-xs font-black text-gray-500">
+                            {studentId}
+                          </span>
+
+                        </td>
+
+                        {/* NAME */}
+                        <td className="py-4 pr-4">
+
+                          <div className="font-black text-gray-800">
+                            {studentName}
+                          </div>
+
+                        </td>
+
+                        {/* MAJOR */}
+                        <td className="py-4 pr-4">
+
+                          <span className="inline-flex bg-gray-100 px-2.5 py-1 rounded-lg text-xs font-black text-gray-600">
+                            {major}
+                          </span>
+
+                        </td>
+
+                        {/* COMPANY */}
+                        <td className="py-4 pr-4">
+
+                          <div className="font-black text-[#800000]">
+                            {companyName}
+                          </div>
+
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="py-4 pr-4 text-center">
+                          {renderStatus(status)}
+                        </td>
+
+                        {/* ACTION */}
+                        <td className="py-4 text-right">
+
+                          <div className="flex justify-end gap-2">
 
                             <button
                               onClick={() =>
-                                approveApplication(
-                                  id
+                                handleApprove(
+                                  applicationId
                                 )
                               }
-                              className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black"
+                              disabled={
+                                !applicationId ||
+                                String(status).toLowerCase() ===
+                                  'approved'
+                              }
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
                             >
                               อนุมัติ
                             </button>
 
                             <button
                               onClick={() =>
-                                rejectApplication(
-                                  id
+                                handleReject(
+                                  applicationId
                                 )
                               }
-                              className="px-3 py-1.5 bg-red-600 text-white rounded-xl text-xs font-black"
+                              disabled={
+                                !applicationId ||
+                                String(status).toLowerCase() ===
+                                  'rejected'
+                              }
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
                             >
                               ปฏิเสธ
                             </button>
 
-                          </td>
+                          </div>
 
-                        </tr>
-                      );
-                    }
-                  )}
+                        </td>
 
-                </tbody>
+                      </tr>
+                    );
+                  })
 
-              </table>
+                )}
 
-            </div>
-          )}
+              </tbody>
+
+            </table>
+
+          </div>
 
         </div>
 
@@ -2191,211 +2381,139 @@ const CoordinatorManagement = ({
     );
   }
 
-  // ==========================================================
+  // =======================================================
   // ALL STUDENTS
-  // ==========================================================
+  // =======================================================
+  if (activeTab === 'all_students') {
 
-  if (
-    activeTab ===
-    "all_students"
-  ) {
     return (
       <div className="space-y-6">
 
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
 
-          <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+          <div className="mb-6">
 
-            <div>
+            <h3 className="text-[#800000] font-black flex items-center gap-2 text-lg">
+              <Users size={24} />
+              จัดการข้อมูลนักศึกษา
+            </h3>
 
-              <h3 className="text-[#800000] font-black flex items-center gap-2 text-lg">
-                <Users size={24} />
-                จัดการผู้ใช้งาน
-              </h3>
-
-              <p className="text-xs text-gray-400 font-bold mt-1">
-                เปลี่ยน Role และจัดการข้อมูลนักศึกษา
-              </p>
-
-            </div>
-
-            <button
-              onClick={fetchStudents}
-              className="px-4 py-2 bg-gray-100 rounded-xl text-xs font-black flex items-center gap-2"
-            >
-              <RefreshCw size={14} />
-              โหลดใหม่
-            </button>
+            <p className="text-xs text-gray-400 font-bold mt-1">
+              รายชื่อนักศึกษาทั้งหมดจากระบบ
+            </p>
 
           </div>
 
-          {loadingStudents ? (
-            <LoadingBox text="กำลังโหลดนักศึกษา..." />
-          ) : students.length ===
-            0 ? (
-            <div className="text-center py-10 text-gray-400">
-              ไม่พบข้อมูลนักศึกษา
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
 
-              <table className="w-full text-left">
+            <table className="w-full text-left border-collapse">
 
-                <thead>
+              <thead>
 
-                  <tr className="border-b border-gray-100 text-xs font-black text-gray-400">
+                <tr className="border-b border-gray-100 text-xs font-black text-gray-400 uppercase">
 
-                    <th className="pb-3">
-                      ID
-                    </th>
+                  <th className="pb-3">
+                    รหัสนักศึกษา
+                  </th>
 
-                    <th className="pb-3">
-                      ชื่อ
-                    </th>
+                  <th className="pb-3">
+                    ชื่อ-นามสกุล
+                  </th>
 
-                    <th className="pb-3">
-                      Email
-                    </th>
+                  <th className="pb-3">
+                    สาขา
+                  </th>
 
-                    <th className="pb-3">
-                      Role
-                    </th>
+                  <th className="pb-3">
+                    Role
+                  </th>
 
-                    <th className="pb-3 text-right">
-                      จัดการ
-                    </th>
+                </tr>
 
+              </thead>
+
+              <tbody className="text-sm font-bold text-gray-700 divide-y divide-gray-50">
+
+                {loadingStudents ? (
+
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="py-10 text-center text-gray-400"
+                    >
+                      กำลังโหลดข้อมูล...
+                    </td>
                   </tr>
 
-                </thead>
+                ) : students.length === 0 ? (
 
-                <tbody className="divide-y divide-gray-50">
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="py-10 text-center text-gray-400"
+                    >
+                      ไม่พบข้อมูลนักศึกษา
+                    </td>
+                  </tr>
 
-                  {students.map(
-                    (student) => {
+                ) : (
 
-                      const userId =
-                        student.user_id ||
-                        student.id;
+                  students.map((student, index) => {
 
-                      return (
-                        <tr
-                          key={userId}
-                          className="hover:bg-gray-50"
-                        >
+                    const name =
+                      student.full_name ||
+                      [
+                        student.first_name,
+                        student.last_name
+                      ]
+                        .filter(Boolean)
+                        .join(' ') ||
+                      student.name ||
+                      student.username ||
+                      '-';
 
-                          <td className="py-4 font-mono text-xs text-gray-400">
-                            {student.student_id ||
-                              userId ||
-                              "-"}
-                          </td>
+                    return (
+                      <tr
+                        key={
+                          student.id ||
+                          student.student_id ||
+                          index
+                        }
+                        className="hover:bg-gray-50/50"
+                      >
 
-                          <td className="py-4 font-black">
-                            {student.first_name ||
-                              student.name ||
-                              "-"}
-                            {" "}
-                            {student.last_name ||
-                              ""}
-                          </td>
+                        <td className="py-4">
+                          {student.student_id ||
+                            student.id ||
+                            '-'}
+                        </td>
 
-                          <td className="py-4 text-xs text-gray-500">
-                            {student.email ||
-                              "-"}
-                          </td>
+                        <td className="py-4">
+                          {name}
+                        </td>
 
-                          <td className="py-4">
+                        <td className="py-4">
+                          <span className="bg-gray-100 px-2 py-1 rounded-lg text-xs">
+                            {student.major ||
+                              student.program ||
+                              student.department ||
+                              '-'}
+                          </span>
+                        </td>
 
-                            <select
-                              value={
-                                student.role ||
-                                "student"
-                              }
-                              onChange={(
-                                e
-                              ) =>
-                                handleRoleChange(
-                                  userId,
-                                  e.target.value
-                                )
-                              }
-                              className="bg-gray-50 border border-gray-100 text-xs font-black rounded-xl p-2 outline-none"
-                            >
+                        <td className="py-4">
+                          {student.role || 'student'}
+                        </td>
 
-                              <option value="student">
-                                นักศึกษา
-                              </option>
+                      </tr>
+                    );
+                  })
 
-                              <option value="teacher">
-                                อาจารย์
-                              </option>
+                )}
 
-                              <option value="admin">
-                                ผู้ดูแลระบบ
-                              </option>
+              </tbody>
 
-                            </select>
-
-                          </td>
-
-                          <td className="py-4 text-right">
-
-                            <button
-                              onClick={() =>
-                                deleteStudent(
-                                  student.student_id ||
-                                    student.id
-                                )
-                              }
-                              className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black flex items-center gap-1 ml-auto"
-                            >
-                              <Trash2
-                                size={14}
-                              />
-                              ลบ
-                            </button>
-
-                          </td>
-
-                        </tr>
-                      );
-                    }
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* CALENDAR LOCAL */}
-
-        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
-
-          <div className="flex items-center justify-between mb-6">
-
-            <h4 className="text-gray-800 font-black flex items-center gap-2">
-              <Calendar
-                size={20}
-                className="text-[#800000]"
-              />
-              ปฏิทินกำหนดการ
-            </h4>
-
-          </div>
-
-          <div className="p-5 bg-amber-50 border border-amber-100 rounded-2xl">
-
-            <p className="text-xs font-black text-amber-700">
-              หมายเหตุ
-            </p>
-
-            <p className="text-xs font-bold text-amber-600 mt-1">
-              ในรายการ API ที่ให้มายังไม่มี endpoint สำหรับ Calendar/Event ดังนั้นส่วนนี้ยังเป็น UI ฝั่ง frontend
-            </p>
+            </table>
 
           </div>
 
@@ -2407,6 +2525,7 @@ const CoordinatorManagement = ({
 
   return null;
 };
+
 
 // ============================================================
 // ADVISOR MANAGEMENT
