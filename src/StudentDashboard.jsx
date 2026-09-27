@@ -202,61 +202,12 @@ const getApiErrorMessage = (
   error,
   fallback = "เกิดข้อผิดพลาด"
 ) => {
-  const data = error?.response?.data;
-
-  if (!data) {
-    return error?.message || fallback;
-  }
-
-  if (typeof data === "string") {
-    return data;
-  }
-
-  const extractMessage = (value) => {
-    if (!value) return null;
-
-    if (typeof value === "string") {
-      return value;
-    }
-
-    if (Array.isArray(value)) {
-      const messages = value
-        .map((item) => extractMessage(item))
-        .filter(Boolean);
-
-      return messages.length
-        ? messages.join("\n")
-        : null;
-    }
-
-    if (typeof value === "object") {
-      return (
-        value.message ||
-        value.msg ||
-        value.detail ||
-        value.error ||
-        value.type ||
-        null
-      );
-    }
-
-    return null;
-  };
-
-  const message =
-    extractMessage(data.detail) ||
-    extractMessage(data.message) ||
-    extractMessage(data.error);
-
-  if (message) {
-    return message;
-  }
-
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return fallback;
-  }
+  return (
+    error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    fallback
+  );
 };
 
 const normalizeProfile = (data) => {
@@ -1266,41 +1217,13 @@ const StudentProfile = ({
     try {
       setSaving(true);
 
-      const username =
-        profileData?.username ||
-        localStorage.getItem("username") ||
-        localStorage.getItem("loginUsername");
-
-      if (!username) {
-        alert(
-          "ไม่พบ username ของผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่"
-        );
-        return;
-      }
-
-      // Keep it available for future Profile updates.
-      localStorage.setItem(
-        "username",
-        String(username)
-      );
-
-      const payload = {
-        username,
-        first_name: form.first_name,
-        last_name: form.last_name,
-        faculty: form.faculty,
-        major: form.major,
-        semester: form.semester,
-        phone: form.phone,
-      };
-
       if (profileData) {
         await apiService.updateStudentProfile(
-          payload
+          form
         );
       } else {
         await apiService.createStudentProfile(
-          payload
+          form
         );
       }
 
@@ -1492,9 +1415,6 @@ const StudentApplication = () => {
   const [applications, setApplications] =
     useState([]);
 
-  const [studentProfile, setStudentProfile] =
-    useState(null);
-
   const [companyId, setCompanyId] =
     useState("");
 
@@ -1511,11 +1431,9 @@ const StudentApplication = () => {
       const [
         companiesResponse,
         applicationsResponse,
-        studentResponse,
       ] = await Promise.all([
         apiService.getCompanies(),
         apiService.getApplications(),
-        apiService.getStudentProfile(),
       ]);
 
       setCompanies(
@@ -1537,12 +1455,6 @@ const StudentApplication = () => {
             "data",
             "items",
           ]
-        )
-      );
-
-      setStudentProfile(
-        normalizeProfile(
-          studentResponse.data
         )
       );
     } catch (error) {
@@ -1571,23 +1483,10 @@ const StudentApplication = () => {
       return;
     }
 
-    const studentId =
-      studentProfile?.student_id ||
-      studentProfile?.id ||
-      localStorage.getItem("userId");
-
-    if (!studentId) {
-      alert(
-        "ไม่พบรหัสนักศึกษา กรุณาโหลด Profile ใหม่หรือเข้าสู่ระบบใหม่"
-      );
-      return;
-    }
-
     try {
       setLoading(true);
 
       await apiService.applyCompany({
-        student_id: studentId,
         company_id: companyId,
       });
 
@@ -2844,6 +2743,7 @@ const AdvisorManagement = ({
 
   const [profileForm, setProfileForm] =
     useState({
+      username: "",
       first_name: "",
       last_name: "",
       phone: "",
@@ -2903,6 +2803,10 @@ const AdvisorManagement = ({
         );
 
         setProfileForm({
+          username:
+            teacherProfile?.username ||
+            localStorage.getItem("username") ||
+            "",
           first_name:
             teacherProfile?.first_name ||
             "",
@@ -3005,8 +2909,38 @@ const AdvisorManagement = ({
       try {
         setSaving(true);
 
+        const username =
+          profile?.username ||
+          profileForm?.username ||
+          localStorage.getItem("username") ||
+          "";
+
+        if (!username) {
+          alert(
+            "ไม่พบ username ของอาจารย์ กรุณาเข้าสู่ระบบใหม่"
+          );
+          return;
+        }
+
+        localStorage.setItem(
+          "username",
+          String(username)
+        );
+
+        const payload = {
+          username: String(username),
+          first_name:
+            profileForm?.first_name || "",
+          last_name:
+            profileForm?.last_name || "",
+          phone:
+            profileForm?.phone || "",
+          email:
+            profileForm?.email || "",
+        };
+
         await apiService.updateTeacherProfile(
-          profileForm
+          payload
         );
 
         alert(
@@ -3015,7 +2949,10 @@ const AdvisorManagement = ({
 
         await fetchAdvisorData();
       } catch (error) {
-        console.error(error);
+        console.error(
+          "Update Teacher Profile Error:",
+          error
+        );
 
         alert(
           getApiErrorMessage(
@@ -3492,14 +3429,6 @@ const MainAppContainer = () => {
       "userId"
     );
 
-    localStorage.removeItem(
-      "username"
-    );
-
-    localStorage.removeItem(
-      "loginUsername"
-    );
-
     setIsLoggedIn(false);
     setProfileData(null);
     setUserRole("student");
@@ -3515,6 +3444,13 @@ const MainAppContainer = () => {
       role,
       username
     ) => {
+      if (username) {
+        localStorage.setItem(
+          "username",
+          String(username)
+        );
+      }
+
       setUserRole(role);
 
       setProfileData(
@@ -4608,8 +4544,6 @@ const LoginPage = ({
             );
           }
 
-          // Keep the username so Profile updates can always
-          // include the required backend field.
           if (loggedInUsername) {
             localStorage.setItem(
               "username",
