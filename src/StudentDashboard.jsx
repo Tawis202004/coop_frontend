@@ -1437,9 +1437,14 @@ const MyTeacher = () => {
       setError("");
 
       const response =
-        await apiService.getMyTeacher();
+  await apiService.getMyTeacher();
 
-      const data = response.data;
+console.log(
+  "STUDENT TEACHER RESPONSE:",
+  response.data
+);
+
+const data = response.data;
 
       setTeacher(
         normalizeProfile(data)
