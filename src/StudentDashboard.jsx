@@ -2862,95 +2862,168 @@ const AdvisorManagement = ({
       email: "",
     });
 
-  const fetchAdvisorData =
-    async () => {
+  const fetchAdvisorData = async () => {
       try {
         setLoading(true);
 
-        const [
-          studentsResponse,
-          dashboardResponse,
-          supervisionsResponse,
-          profileResponse,
-        ] = await Promise.all([
-          apiService.getTeacherStudents(),
-          apiService.getTeacherDashboard(),
-          apiService.getTeacherSupervisions(),
-          apiService.getTeacherProfile(),
-        ]);
+        // โหลด Profile แยกจาก API อื่น เพื่อไม่ให้ dashboard/supervisions
+        // ที่ error 500 ทำให้ rank/role ของอาจารย์หาย
+        try {
+          const profileResponse =
+            await apiService.getTeacherProfile();
 
-        setMyStudents(
-          normalizeList(
-            studentsResponse.data,
-            [
-              "students",
-              "data",
-              "items",
-            ]
-          )
-        );
-
-        setDashboard(
-          dashboardResponse.data
-        );
-
-        setSupervisions(
-          normalizeList(
-            supervisionsResponse.data,
-            [
-              "supervisions",
-              "data",
-              "items",
-            ]
-          )
-        );
-
-        const teacherProfile =
-          normalizeProfile(
+          console.log(
+            "GET /teacher/me RAW RESPONSE:",
             profileResponse.data
           );
 
-        setProfile(
-          teacherProfile
+          const teacherProfile =
+            normalizeProfile(
+              profileResponse.data
+            );
+
+          console.log(
+            "NORMALIZED TEACHER PROFILE:",
+            teacherProfile
+          );
+
+          setProfile(teacherProfile);
+
+          if (teacherProfile?.username) {
+            localStorage.setItem(
+              "username",
+              String(
+                teacherProfile.username
+              )
+            );
+          }
+
+          if (teacherProfile?.rank) {
+            localStorage.setItem(
+              "teacherRank",
+              String(
+                teacherProfile.rank
+              )
+            );
+          }
+
+          if (teacherProfile?.role) {
+            localStorage.setItem(
+              "backendRole",
+              String(
+                teacherProfile.role
+              )
+            );
+          }
+
+          setProfileForm((prev) => ({
+            ...prev,
+            username:
+              teacherProfile?.username ||
+              localStorage.getItem(
+                "username"
+              ) ||
+              "",
+            rank:
+              teacherProfile?.rank ||
+              localStorage.getItem(
+                "teacherRank"
+              ) ||
+              "",
+            role:
+              teacherProfile?.role ||
+              localStorage.getItem(
+                "backendRole"
+              ) ||
+              "teacher",
+            first_name:
+              teacherProfile?.first_name ||
+              "",
+            last_name:
+              teacherProfile?.last_name ||
+              "",
+            email:
+              teacherProfile?.email ||
+              "",
+          }));
+        } catch (profileError) {
+          console.error(
+            "Teacher Profile API Error:",
+            profileError
+          );
+
+          // ใช้ค่าที่เคยโหลดสำเร็จเป็น fallback
+          setProfileForm((prev) => ({
+            ...prev,
+            username:
+              prev?.username ||
+              localStorage.getItem(
+                "username"
+              ) ||
+              "",
+            rank:
+              prev?.rank ||
+              localStorage.getItem(
+                "teacherRank"
+              ) ||
+              "",
+            role:
+              prev?.role ||
+              localStorage.getItem(
+                "backendRole"
+              ) ||
+              "teacher",
+          }));
+        }
+
+        // API ส่วนอื่นโหลดแยกกัน แต่ละตัว fail ได้โดยไม่กระทบ Profile
+        const otherRequests = [];
+
+        otherRequests.push(
+          apiService
+            .getTeacherDashboard()
+            .then((response) => {
+              setDashboard(
+                response?.data || null
+              );
+            })
+            .catch((error) => {
+              console.error(
+                "Teacher Dashboard API Error:",
+                error
+              );
+            })
         );
 
-        setProfileForm({
-          username:
-            teacherProfile?.username ||
-            localStorage.getItem("username") ||
-            "",
-          rank:
-            teacherProfile?.rank ||
-            localStorage.getItem("teacherRank") ||
-            "",
-          role:
-            teacherProfile?.role ||
-            localStorage.getItem("backendRole") ||
-            "teacher",
-          first_name:
-            teacherProfile?.first_name ||
-            "",
-          last_name:
-            teacherProfile?.last_name ||
-            "",
-          phone:
-            teacherProfile?.phone ||
-            "",
-          email:
-            teacherProfile?.email ||
-            "",
-        });
+        otherRequests.push(
+          apiService
+            .getTeacherSupervisions()
+            .then((response) => {
+              const data =
+                response?.data?.supervisions ||
+                response?.data ||
+                [];
+              setSupervisions(
+                Array.isArray(data)
+                  ? data
+                  : []
+              );
+            })
+            .catch((error) => {
+              console.error(
+                "Teacher Supervisions API Error:",
+                error
+              );
+            })
+        );
+
+        await Promise.allSettled(
+          otherRequests
+        );
       } catch (error) {
         console.error(
           "Advisor API:",
           error
-        );
-
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถโหลดข้อมูลอาจารย์ได้"
-          )
         );
       } finally {
         setLoading(false);
@@ -3050,8 +3123,26 @@ const AdvisorManagement = ({
         const teacherRank =
           profileForm?.rank?.trim() ||
           profile?.rank ||
-          localStorage.getItem("teacherRank") ||
+          localStorage.getItem(
+            "teacherRank"
+          ) ||
           "";
+
+        console.log(
+          "TEACHER RANK BEFORE SAVE:",
+          {
+            formRank:
+              profileForm?.rank,
+            profileRank:
+              profile?.rank,
+            savedRank:
+              localStorage.getItem(
+                "teacherRank"
+              ),
+            finalRank:
+              teacherRank,
+          }
+        );
 
         if (!teacherRank) {
           alert(
