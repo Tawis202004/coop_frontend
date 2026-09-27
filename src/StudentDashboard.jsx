@@ -1,633 +1,576 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  BarChart3, 
-  Factory, 
-  FileSearch, 
-  ClipboardCheck, 
-  Users, 
-  UserCheck, 
-  LogOut, 
-  Menu, 
-  X, 
-  User, 
-  Mail, 
-  Phone, 
-  Building, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  GraduationCap 
+  CheckCircle2, XCircle, Clock, FileText, Search, 
+  Users, Calendar, Plus, RefreshCw, ShieldAlert, AlertCircle, Edit, Trash2
 } from 'lucide-react';
 
-const API_BASE_URL = 'https://coop-backend-02.vercel.app';
+const API_BASE = 'https://coop-backend-02.vercel.app';
 
-// ==========================================
-// Placeholder Logos & External Management Components
-// ==========================================
-const RobotLogo = ({ className = "w-12 h-12" }) => (
-  <div className={`${className} bg-[#800000] text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border-2 border-white/20 shrink-0`}>
-    CP
-  </div>
-);
-
-// Component จำลองสำหรับส่วนจัดการบริษัทของผู้ใช้ role ต่างๆ
-const CompanyManagement = () => (
-  <div className="bg-white p-12 rounded-[35px] text-center border border-gray-100 shadow-sm">
-    <Factory size={48} className="mx-auto mb-4 text-[#800000]" />
-    <h3 className="font-black text-gray-800 text-lg">ระบบจัดการสถานประกอบการ</h3>
-    <p className="text-xs text-gray-400 font-bold mt-1">แสดงรายชื่อบริษัทและสถานประกอบการที่เข้าร่วมโครงการสหกิจศึกษา</p>
-  </div>
-);
-
-// Component จำลองสำหรับผู้ประสานงาน
-const CoordinatorManagement = ({ activeTab }) => (
-  <div className="bg-white p-12 rounded-[35px] text-center border border-gray-100 shadow-sm">
-    <ClipboardCheck size={48} className="mx-auto mb-4 text-[#800000]" />
-    <h3 className="font-black text-gray-800 text-lg">เมนูผู้ประสานงาน: {activeTab}</h3>
-    <p className="text-xs text-gray-400 font-bold mt-1">ส่วนจัดการคำร้อง ตรวจสอบสิทธิ์ และอนุมัติข้อมูลนักศึกษา</p>
-  </div>
-);
-
-// Component จำลองสำหรับอาจารย์นิเทศก์
-const AdvisorManagement = ({ activeTab }) => (
-  <div className="bg-white p-12 rounded-[35px] text-center border border-gray-100 shadow-sm">
-    <Users size={48} className="mx-auto mb-4 text-[#800000]" />
-    <h3 className="font-black text-gray-800 text-lg">เมนูปรับแต่งอาจารย์นิเทศก์: {activeTab}</h3>
-    <p className="text-xs text-gray-400 font-bold mt-1">บันทึกการนิเทศงานและตรวจสอบนักศึกษาในที่ปรึกษา</p>
-  </div>
-);
-
-// ==========================================
-// Sub-Component: ส่วนแสดงข้อมูลอาจารย์ที่ดูแล (สำหรับฝั่งนักศึกษา)
-// ==========================================
-const AdvisorInfoView = () => {
-  const [advisorData, setAdvisorData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchAdvisorInfo = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const token = localStorage.getItem('token');
-        
-        // ยิง API ดึงข้อมูลอาจารย์ที่ดูแลนักศึกษา
-        const response = await axios.get(`${API_BASE_URL}/teacher/students`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        console.log("Raw Advisor Response:", response.data);
-
-        // Parsing โครงสร้าง response JSON หลากหลายรูปแบบ
-        const resData = response.data;
-        let extractedAdvisor = null;
-
-        if (Array.isArray(resData)) {
-          extractedAdvisor = resData[0] || null;
-        } else if (resData && typeof resData === 'object') {
-          extractedAdvisor = 
-            resData.teacher || 
-            resData.advisor || 
-            resData.data?.[0] || 
-            resData.data || 
-            (resData.first_name || resData.name || resData.staff_id ? resData : null);
-        }
-
-        setAdvisorData(extractedAdvisor);
-      } catch (err) {
-        console.error("Error fetching advisor info:", err);
-        if (err.response?.status === 404) {
-          setError("ยังไม่มีอาจารย์นิเทศก์ที่ได้รับมอบหมายในขณะนี้");
-        } else {
-          setError("ไม่สามารถโหลดข้อมูลอาจารย์ที่ดูแลได้");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAdvisorInfo();
-  }, []);
-
-  // Mapping Field จาก Database แบบมี Fallback
-  const firstName = advisorData?.first_name || advisorData?.firstname || advisorData?.name?.split(' ')[0] || '';
-  const lastName = advisorData?.last_name || advisorData?.lastname || advisorData?.name?.split(' ')[1] || '';
-  const fullName = firstName && lastName 
-    ? `${firstName} ${lastName}` 
-    : advisorData?.name || advisorData?.username || 'อาจารย์นิเทศก์ประจำตัว';
-
-  const email = advisorData?.email || advisorData?.contact_email || 'ไม่ระบุอีเมล';
-  const phone = advisorData?.phone || advisorData?.tel || advisorData?.mobile || 'ไม่ระบุเบอร์โทรศัพท์';
-  const department = advisorData?.department || advisorData?.faculty || advisorData?.major || 'สาขาวิชาวิศวกรรมคอมพิวเตอร์และปัญญาประดิษฐ์';
-  const staffId = advisorData?.staff_id || advisorData?.teacher_id || advisorData?.id || '-';
-
-  if (loading) {
-    return (
-      <div className="bg-white p-12 rounded-[35px] text-center border border-gray-100 shadow-sm">
-        <div className="animate-spin w-8 h-8 border-4 border-[#800000] border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-xs font-bold text-gray-500">กำลังโหลดข้อมูลอาจารย์ผู้ดูแล...</p>
-      </div>
-    );
-  }
-
-  if (error || !advisorData) {
-    return (
-      <div className="bg-white p-12 md:p-16 rounded-[40px] text-center border-2 border-dashed border-gray-100">
-        <UserCheck size={48} className="mx-auto mb-4 text-gray-300" />
-        <h3 className="font-black text-gray-800 text-lg">ยังไม่พบข้อมูลอาจารย์นิเทศก์</h3>
-        <p className="text-xs text-gray-400 font-bold mt-2">
-          {error || 'ขณะนี้ระบบยังไม่ได้ทำการมอบหมายอาจารย์นิเทศก์ให้แก่บัญชีของคุณ'}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white p-6 md:p-8 rounded-[35px] shadow-sm border border-gray-100">
-      <h4 className="text-gray-800 font-black mb-6 flex items-center gap-2">
-        <UserCheck size={20} className="text-[#800000]" />
-        อาจารย์ที่ดูแล (Advisor)
-      </h4>
-
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 bg-gradient-to-br from-red-50/60 to-red-50/20 p-6 md:p-8 rounded-[30px] border border-red-100/50">
-        <div className="w-20 h-20 bg-[#800000] text-white rounded-2xl flex items-center justify-center font-black text-2xl shrink-0 shadow-lg shadow-red-900/10">
-          {firstName ? firstName.charAt(0) : <User size={32} />}
-        </div>
-
-        <div className="flex-1 space-y-4 text-center md:text-left w-full">
-          <div>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1">
-              <span className="text-[10px] font-black bg-red-100 text-[#800000] px-2.5 py-0.5 rounded-md uppercase">
-                STAFF ID: {staffId}
-              </span>
-            </div>
-            <h5 className="text-xl font-black text-gray-800">{fullName}</h5>
-            <p className="text-xs font-bold text-gray-500 mt-0.5">อาจารย์นิเทศก์ประจำตัวนักศึกษา</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-red-100/80 text-xs text-gray-600 font-bold">
-            <div className="flex items-center justify-center md:justify-start gap-2.5 bg-white/80 p-3 rounded-2xl border border-red-50">
-              <Mail size={16} className="text-[#800000] shrink-0" />
-              <span className="truncate">{email}</span>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-2.5 bg-white/80 p-3 rounded-2xl border border-red-50">
-              <Phone size={16} className="text-[#800000] shrink-0" />
-              <span>{phone}</span>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-2.5 bg-white/80 p-3 rounded-2xl border border-red-50 sm:col-span-2">
-              <Building size={16} className="text-[#800000] shrink-0" />
-              <span className="truncate">สังกัด: {department}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+// Helper สำหรับส่ง Header Bearer Token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  };
 };
 
 // ==========================================
-// --- 4. Main Container ---
+// 1. CoordinatorManagement Component (ผู้ประสานงาน)
 // ==========================================
-const MainAppContainer = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
-  const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || 'student');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
- 
-  const [profileData, setProfileData] = useState(null);
-  const [fetchingUser, setFetchingUser] = useState(false);
+export const CoordinatorManagement = ({ activeTab }) => {
+  // --- States สำหรับ "อนุมัติคำร้อง" (manage_requests) ---
+  const [applications, setApplications] = useState([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [appSearch, setAppSearch] = useState('');
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  useEffect(() => {
-    if (isLoggedIn) {
-      const fetchUserProfile = async () => {
-        try {
-          setFetchingUser(true);
-          const token = localStorage.getItem('token');
-          
-          let fetchUrl = `${API_BASE_URL}/student/me`;
-          if (userRole === 'coordinator' || userRole === 'advisor') {
-            fetchUrl = `${API_BASE_URL}/staff/me`;
-          }
+  // --- States สำหรับ "จัดการสิทธิ์นักศึกษา/ผู้ใช้งาน" (all_students) ---
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
 
-          const response = await axios.get(fetchUrl, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-         
-          console.log("Raw Profile Response:", response.data);
-
-          if (Array.isArray(response.data)) {
-            setProfileData(response.data[0]);
-          } else if (response.data?.user) {
-            setProfileData(Array.isArray(response.data.user) ? response.data.user[0] : response.data.user);
-          } else {
-            setProfileData(response.data);
-          }
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-          if (error.response?.status === 401) {
-            handleLogout();
-          }
-        } finally {
-          setFetchingUser(false);
-        }
-      };
-      fetchUserProfile();
-    }
-  }, [isLoggedIn, userRole]);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    setIsLoggedIn(false);
-    setProfileData(null);
-    setUserRole('student');
-    setActiveTab('overview');
-  };
-
-  const handleLoginSuccess = (role) => {
-    setUserRole(role);
-    setIsLoggedIn(true);
-  };
-
-  const displayId = profileData?.student_id || profileData?.staff_id || profileData?.username || '-';
-  const displayFullName = profileData?.first_name && profileData?.last_name
-    ? `${profileData.first_name} ${profileData.last_name}`
-    : fetchingUser ? 'กำลังโหลด...' : 'อาจารย์ประจำวิชา / เจ้าหน้าที่';
-
-  if (!isLoggedIn) return <LoginPage onLogin={handleLoginSuccess} />;
-
-  const getMenuItems = () => {
-    if (userRole === 'student') {
-      return [
-        { id: 'overview', name: 'หน้าหลัก', icon: <BarChart3 size={20}/> },
-        { id: 'company', name: 'บริษัท', icon: <Factory size={20}/> },
-        { id: 'request', name: 'คำร้องของฉัน', icon: <FileSearch size={20}/> },
-        { id: 'advisor', name: 'อาจารย์ที่ดูแล', icon: <UserCheck size={20}/> } // <-- เมนู API ที่เพิ่มใหม่
-      ];
-    } else if (userRole === 'coordinator') {
-      return [
-        { id: 'overview', name: 'แผงควบคุมหลัก', icon: <BarChart3 size={20}/> },
-        { id: 'company', name: 'จัดการบริษัท', icon: <Factory size={20}/> },
-        { id: 'manage_requests', name: 'อนุมัติคำร้องนักศึกษา', icon: <ClipboardCheck size={20}/> },
-        { id: 'all_students', name: 'ข้อมูลสิทธิ์และปฏิทิน', icon: <Users size={20}/> }
-      ];
-    } else {
-      return [
-        { id: 'overview', name: 'หน้าแรก', icon: <BarChart3 size={20}/> },
-        { id: 'company', name: 'ดูรายชื่อสถานประกอบการ', icon: <Factory size={20}/> },
-        { id: 'supervise', name: 'บันทึกการนิเทศงาน', icon: <ClipboardCheck size={20}/> },
-        { id: 'my_students', name: 'นักศึกษาในที่ปรึกษา', icon: <Users size={20}/> }
-      ];
-    }
-  };
-
-  return (
-    <div className="flex h-screen w-full bg-[#f1f5f9] font-['Sarabun'] antialiased overflow-hidden">
-     
-      {/* Sidebar */}
-      <aside className={`fixed md:relative inset-y-0 left-0 z-40 bg-[#800000] text-white transition-all duration-300 flex flex-col shrink-0 ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full md:translate-x-0 md:w-24'}`}>
-        <div className="p-6 flex items-center justify-center border-b border-white/10 relative h-24 shrink-0">
-          <div className="flex items-center gap-3">
-            <RobotLogo className="w-12 h-12 drop-shadow-md" />
-            {(isSidebarOpen || window.innerWidth < 768) && (
-              <span className="font-black text-base uppercase tracking-tighter text-white animate-in fade-in duration-300">
-                CO-OP SYSTEM ({userRole === 'student' ? 'STUDENT' : 'STAFF'})
-              </span>
-            )}
-          </div>
-          {isSidebarOpen && (
-            <button onClick={() => setIsSidebarOpen(false)} className="absolute right-4 md:hidden p-2 hover:bg-white/10 rounded-xl">
-              <X size={20} />
-            </button>
-          )}
-        </div>
-
-        <nav className="flex-1 px-4 mt-8 space-y-2 overflow-y-auto">
-          {getMenuItems().map(item => (
-            <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`flex items-center w-full p-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-white text-[#800000] shadow-lg' : 'text-red-100/70 hover:bg-white/5'}`}>
-              {item.icon}
-              {isSidebarOpen && <span className="ml-4 text-xs font-black uppercase tracking-wide">{item.name}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={handleLogout} className="p-8 flex items-center text-red-200 hover:text-white transition-colors border-t border-white/5 shrink-0">
-          <LogOut size={20} />
-          {isSidebarOpen && <span className="ml-4 font-black text-xs uppercase">LOGOUT</span>}
-        </button>
-      </aside>
-
-      {/* ขอบเขตเนื้อหาหลักฝั่งขวา */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-       
-        {/* Header แถบบน */}
-        <header className="h-20 bg-white border-b flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-4">
-            {!isSidebarOpen && (
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl transition-all">
-                <Menu size={20} />
-              </button>
-            )}
-            <h2 className="font-black text-gray-800 uppercase tracking-wide text-sm md:text-base">
-              {activeTab === 'overview' ? 'Dashboard Overview' : activeTab === 'advisor' ? 'อาจารย์ที่ดูแล' : activeTab}
-            </h2>
-          </div>
-         
-          <div className="flex items-center gap-3 bg-gray-50 pl-4 pr-3 py-1.5 rounded-2xl border border-gray-100">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-gray-700">
-                {userRole === 'student' ? `ST-ID: ${displayId}` : `STAFF-ID: ${displayId}`}
-              </p>
-              <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span className="text-[9px] font-black text-red-800 uppercase bg-red-50 px-1.5 py-0.5 rounded">
-                  {userRole === 'student' ? 'นักศึกษา' : userRole === 'coordinator' ? 'ผู้ประสานงาน' : 'อาจารย์นิเทศก์'}
-                </span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#800000] flex items-center justify-center text-white font-black shadow-md shadow-red-900/20">
-              <User size={20} />
-            </div>
-          </div>
-        </header>
-
-        {/* ส่วนกระดานบอร์ดเนื้อหาหลัก */}
-        <section className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/50">
-          <div className="max-w-5xl mx-auto space-y-6">
-           
-            {activeTab === 'overview' && (
-              <>
-                {/* 1. ส่วนต้อนรับและข้อมูลส่วนตัวตามบทบาท */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* แบนเนอร์แดงต้อนรับ */}
-                  <div className="lg:col-span-2 bg-gradient-to-br from-[#800000] to-red-950 p-8 md:p-10 rounded-[35px] text-white shadow-xl relative overflow-hidden flex flex-col justify-center">
-                    <h3 className="text-xl md:text-2xl font-black mb-2">
-                      สวัสดีคุณ {displayFullName}!
-                    </h3>
-                    <p className="opacity-80 text-xs font-medium max-w-sm leading-relaxed">
-                      {userRole === 'student'
-                        ? 'ยินดีต้อนรับเข้าสู่ระบบจัดการสหกิจศึกษา ตรวจสอบสถานะคำร้องและข้อมูลบริษัทชั้นนำได้ทันที'
-                        : 'ระบบจัดการหลังบ้านสำหรับคณาจารย์และเจ้าหน้าที่ ตรวจสอบความถูกต้องและอนุมัติสิทธิ์นักศึกษา'}
-                    </p>
-                    <Factory className="absolute -right-6 -bottom-10 w-48 h-48 text-white/5 rotate-12 pointer-events-none" />
-                  </div>
-
-                  {/* การ์ดข้อมูลส่วนตัวผู้ใช้งาน */}
-                  <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] bg-red-50 text-[#800000] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">
-                        บัญชีผู้ใช้งานปัจจุบัน
-                      </span>
-                     
-                      <div className="flex items-center gap-3 mt-4">
-                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-500"><GraduationCap size={24} /></div>
-                        <div>
-                          <p className="text-xs font-black text-gray-800">{displayFullName}</p>
-                          <p className="text-[11px] text-gray-400 font-bold">สิทธิ์ใช้งาน: {userRole}</p>
-                        </div>
-                      </div>
-                    </div>
-                   
-                    <div className="border-t border-gray-50 pt-3 mt-4 space-y-1.5 text-xs text-gray-500 font-bold">
-                      {userRole === 'student' ? (
-                        <>
-                          <p>คณะ: <span className="text-gray-700 font-black">{profileData?.faculty || 'ไม่ระบุคณะ'}</span></p>
-                          <p>สาขา: <span className="text-gray-700 font-black">{profileData?.major || 'ไม่ระบุสาขา'}</span></p>
-                          <p>ภาคเรียนที่: <span className="text-[#800000] font-black">{profileData?.semester || '1'}</span></p>
-                        </>
-                      ) : (
-                        <>
-                          <p>สังกัด: <span className="text-gray-700 font-black">สาขาวิศวกรรมคอมพิวเตอร์และปัญญาประดิษฐ์</span></p>
-                          <p>สถานะการตรวจสอบ: <span className="text-green-600 font-black">Authorized Staff</span></p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. สรุปแดชบอร์ดตามบทบาทผู้ใช้งาน */}
-                <div className="bg-white p-6 md:p-8 rounded-[35px] shadow-sm border border-gray-100">
-                  <h4 className="text-gray-800 font-black mb-6 flex items-center gap-2">
-                    <BarChart3 size={20} className="text-[#800000]"/>
-                    {userRole === 'student' ? 'สรุปสถานะคำร้องส่วนตัว' : 'ภาพรวมข้อมูลคำร้องงานในระบบทั้งหมด'}
-                  </h4>
-                 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-emerald-600 mb-1">อนุมัติเรียบร้อย</p>
-                        <h5 className="text-2xl font-black text-emerald-700">{userRole === 'student' ? '2' : '45'} <span className="text-xs font-bold text-emerald-600/70">รายการ</span></h5>
-                      </div>
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-black text-emerald-700 shadow-sm border-2 border-emerald-400">OK</div>
-                    </div>
-
-                    <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-amber-600 mb-1">รอการตรวจสอบ</p>
-                        <h5 className="text-2xl font-black text-amber-700">{userRole === 'student' ? '1' : '12'} <span className="text-xs font-bold text-amber-600/70">รายการ</span></h5>
-                      </div>
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-black text-amber-700 shadow-sm border-2 border-amber-300">WAIT</div>
-                    </div>
-
-                    <div className="p-5 bg-red-50/40 border border-red-100 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-red-600 mb-1">ปฏิเสธ/รอแก้ไข</p>
-                        <h5 className="text-2xl font-black text-red-700">{userRole === 'student' ? '0' : '3'} <span className="text-xs font-bold text-red-600/70">รายการ</span></h5>
-                      </div>
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xs font-black text-gray-400 shadow-sm border-2 border-gray-200">0</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ไทม์ไลน์จะแสดงเฉพาะฝั่งนักศึกษา */}
-                {userRole === 'student' && (
-                  <div className="bg-white p-6 md:p-8 rounded-[35px] shadow-sm border border-gray-100">
-                    <h4 className="text-gray-800 font-black mb-8 flex items-center gap-2">
-                      <Calendar size={20} className="text-[#800000]"/> ไทม์ไลน์ขั้นตอนการดำเนินงาน (Co-op Timeline)
-                    </h4>
-                    <div className="relative border-l-2 border-red-100 ml-4 md:ml-6 space-y-8 pb-4">
-                      <div className="relative pl-8">
-                        <div className="absolute -left-[13px] top-0 bg-emerald-500 text-white p-1 rounded-full">
-                          <CheckCircle2 size={16} />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded-md">เสร็จสิ้นแล้ว</span>
-                          <h5 className="text-sm font-black text-gray-800 mt-1">ยื่นใบสมัครและเลือกสถานประกอบการ</h5>
-                        </div>
-                      </div>
-                      <div className="relative pl-8">
-                        <div className="absolute -left-[13px] top-0 bg-amber-400 text-white p-1 rounded-full">
-                          <Clock size={16} />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-amber-600 font-black bg-amber-50 px-2 py-0.5 rounded-md">กำลังดำเนินงาน</span>
-                          <h5 className="text-sm font-black text-gray-800 mt-1">อาจารย์และเจ้าหน้าที่ตรวจสอบคำร้อง</h5>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === 'company' && <CompanyManagement />}
-
-            {/* หน้าสำหรับนักศึกษาดูอาจารย์ที่ดูแล (API: /teacher/students) */}
-            {userRole === 'student' && activeTab === 'advisor' && (
-              <AdvisorInfoView />
-            )}
-
-            {/* หน้าสลับสำหรับฝั่ง ผู้ประสานงาน (Coordinator Views) */}
-            {userRole === 'coordinator' && (
-              <CoordinatorManagement activeTab={activeTab} />
-            )}
-
-            {/* หน้าสลับสำหรับฝั่ง อาจารย์นิเทศก์ (Advisor Views) */}
-            {userRole === 'advisor' && (
-              <AdvisorManagement activeTab={activeTab} />
-            )}
-
-            {/* Fallback View สำหรับหน้าคำร้องฝั่งนักศึกษา (Static) */}
-            {userRole === 'student' && activeTab === 'request' && (
-              <div className="bg-white p-20 rounded-[40px] text-center border-2 border-dashed border-gray-100">
-                <FileSearch size={48} className="mx-auto mb-4 text-gray-300" />
-                <h3 className="font-black text-gray-800">หน้าต่างตรวจสอบคำร้องนักศึกษา</h3>
-                <p className="text-xs text-gray-400 font-bold mt-2">คำร้องของคุณกำลังอยู่ในกระบวนการพิจารณาตรวจสอบความถูกต้องโครงสร้างขององค์กร</p>
-              </div>
-            )}
-
-          </div>
-        </section>
-      </main>
-     
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
-      `}} />
-    </div>
-  );
-};
-
-// ==========================================
-// --- 5. หน้า Login ---
-// ==========================================
-const LoginPage = ({ onLogin }) => {
-  const [role, setRole] = useState('student'); // 'student' | 'coordinator' | 'advisor'
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  // 1. API: ดึงรายการคำร้องขอปฏิบัติงานสหกิจศึกษาทั้งหมด
+  const fetchApplications = async () => {
     try {
-      const payload = {
-        username: String(username),
-        password: String(password)
-      };
-      
-      const endpoint = '/login'; 
-      const response = await axios.post(`${API_BASE_URL}${endpoint}`, payload);
-      
-      const token = typeof response.data === 'string' ? response.data : response.data.access_token;
-      
-      if (token) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('userRole', role);
-        onLogin(role);
-      } else {
-        alert("ระบบได้รับข้อมูลสำเร็จ แต่ไม่พบสิทธิ์เข้าใช้งานในรูปแบบ Token");
-      }
-    } catch (error) {
-      if (error.response) {
-        if (error.response.status === 404) {
-          alert(`ไม่พบหน้าปลายทาง (404 Not Found):\nพาท "${error.config.url}" ไม่มีอยู่จริงในเซิร์ฟเวอร์หลังบ้าน`);
-        } else if (error.response.status === 401 || error.response.status === 422) {
-          alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือโครงสร้างข้อมูลไม่สมบูรณ์");
-        } else {
-          alert(`เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: รหัสสถานะ ${error.response.status}`);
-        }
-      } else {
-        alert("ไม่สามารถเชื่อมต่อเครือข่ายเข้ากับเซิร์ฟเวอร์หลังบ้านได้");
-      }
+      setLoadingApps(true);
+      const res = await axios.get(`${API_BASE}/applications`, getAuthHeaders());
+      const data = Array.isArray(res.data) ? res.data : (res.data.applications || []);
+      setApplications(data);
+    } catch (err) {
+      console.error("Error fetching applications:", err);
     } finally {
-      setLoading(false);
+      setLoadingApps(false);
     }
   };
 
-  const getUsernamePlaceholder = () => {
-    if (role === 'student') return "รหัสนักศึกษา";
-    if (role === 'coordinator') return "ชื่อบัญชีอาจารย์ผู้ประสานงาน";
-    return "ชื่อบัญชีอาจารย์นิเทศก์";
+  // 2. API: ดึง รายชื่อนักศึกษา/ผู้ใช้งาน ทั้งหมดในระบบ
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const res = await axios.get(`${API_BASE}/students`, getAuthHeaders());
+      const data = Array.isArray(res.data) ? res.data : (res.data.students || []);
+      setStudents(data);
+    } catch (err) {
+      console.error("Error fetching students:", err);
+    } finally {
+      setLoadingStudents(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4">
-      <div className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl w-full max-w-lg border border-gray-50 text-center">
-        <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4">
-          <RobotLogo className="w-18 h-18" />
-        </div>
-        <h1 className="text-xl font-black text-gray-800 uppercase mb-6 tracking-tighter">เข้าสู่ระบบระบบสหกิจศึกษา</h1>
-        
-        <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1.5 rounded-2xl mb-6">
-          <button
-            type="button"
-            onClick={() => { setRole('student'); setUsername(''); setPassword(''); }}
-            className={`py-2.5 rounded-xl font-black text-xs transition-all ${role === 'student' ? 'bg-[#800000] text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
-          >
-            นักศึกษา
-          </button>
-          <button
-            type="button"
-            onClick={() => { setRole('coordinator'); setUsername(''); setPassword(''); }}
-            className={`py-2.5 rounded-xl font-black text-xs transition-all ${role === 'coordinator' ? 'bg-[#800000] text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
-          >
-            ผู้ประสานงาน
-          </button>
-          <button
-            type="button"
-            onClick={() => { setRole('advisor'); setUsername(''); setPassword(''); }}
-            className={`py-2.5 rounded-xl font-black text-xs transition-all ${role === 'advisor' ? 'bg-[#800000] text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
-          >
-            อาจารย์นิเทศก์
-          </button>
+  // Trigger ดึงข้อมูลตาม Tab ที่เลือก
+  useEffect(() => {
+    if (activeTab === 'manage_requests') {
+      fetchApplications();
+    } else if (activeTab === 'all_students') {
+      fetchStudents();
+    }
+  }, [activeTab]);
+
+  // 3. API: อนุมัติคำร้อง
+  const handleApproveApp = async (appId) => {
+    try {
+      setActionLoadingId(appId);
+      await axios.put(`${API_BASE}/applications/${appId}/approve`, {}, getAuthHeaders());
+      alert('อนุมัติคำร้องขอฝึกงานเรียบร้อยแล้ว');
+      fetchApplications();
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert('เกิดข้อผิดพลาด ไม่สามารถอนุมัติคำร้องได้');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // 4. API: ปฏิเสธคำร้อง
+  const handleRejectApp = async (appId) => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะปฏิเสธคำร้องนี้?')) return;
+    try {
+      setActionLoadingId(appId);
+      await axios.put(`${API_BASE}/applications/${appId}/reject`, {}, getAuthHeaders());
+      alert('ปฏิเสธคำร้องเรียบร้อยแล้ว');
+      fetchApplications();
+    } catch (err) {
+      console.error("Reject error:", err);
+      alert('เกิดข้อผิดพลาด ไม่สามารถปฏิเสธคำร้องได้');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // 5. API: อัปเดตสิทธิ์ผู้ใช้ (Role Management)
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      await axios.put(`${API_BASE}/users/${userId}/role`, { role: newRole }, getAuthHeaders());
+      alert(`อัปเดตสิทธิ์การใช้งานเป็น ${newRole} เรียบร้อยแล้ว`);
+      fetchStudents();
+    } catch (err) {
+      console.error("Update role error:", err);
+      alert('ไม่สามารถอัปเดตสิทธิ์ผู้ใช้ได้');
+    }
+  };
+
+  // การกรองข้อมูลค้นหาคำร้อง
+  const filteredApps = applications.filter(app => {
+    const q = appSearch.toLowerCase();
+    return (
+      (app.student_name && app.student_name.toLowerCase().includes(q)) ||
+      (app.company_name && app.company_name.toLowerCase().includes(q)) ||
+      (app.student_id && app.student_id.toString().includes(q))
+    );
+  });
+
+  // การกรองข้อมูลค้นหานักศึกษา
+  const filteredStudents = students.filter(st => {
+    const q = studentSearch.toLowerCase();
+    return (
+      (st.first_name && st.first_name.toLowerCase().includes(q)) ||
+      (st.last_name && st.last_name.toLowerCase().includes(q)) ||
+      (st.student_id && st.student_id.toString().includes(q))
+    );
+  });
+
+  // ---------------- VIEW 1: จัดการอนุมัติคำร้อง ----------------
+  if (activeTab === 'manage_requests') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h3 className="font-black text-gray-800 text-lg">รายการคำร้องขอสหกิจศึกษาทั้งหมด</h3>
+            <p className="text-xs text-gray-400 font-bold mt-1">ตรวจสอบและดำเนินการอนุมัติหรือปฏิเสธคำร้องขอฝึกงานของนักศึกษา</p>
+          </div>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อ, รหัสนักศึกษา..."
+                value={appSearch}
+                onChange={(e) => setAppSearch(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
+              />
+            </div>
+            <button 
+              onClick={fetchApplications} 
+              className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-600 transition-all active:scale-95"
+              title="รีเฟรชข้อมูล"
+            >
+              <RefreshCw size={18} className={loadingApps ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+        {loadingApps ? (
+          <div className="text-center py-16 bg-white rounded-[35px] border border-gray-100 text-gray-400 font-bold">
+            กำลังดึงข้อมูลคำร้องจากเซิร์ฟเวอร์...
+          </div>
+        ) : filteredApps.length === 0 ? (
+          <div className="bg-white p-16 rounded-[35px] text-center text-gray-400 font-bold border border-gray-100">
+            ไม่พบรายการคำร้องตรงตามเงื่อนไข
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {filteredApps.map((app) => {
+              const appId = app.id || app.application_id;
+              return (
+                <div key={appId} className="bg-white p-6 rounded-[30px] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-gray-200 transition-all">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black bg-red-50 text-[#800000] px-2.5 py-0.5 rounded-md">
+                        {app.student_id || 'N/A'}
+                      </span>
+                      <h4 className="font-black text-gray-800 text-base">{app.student_name || `${app.first_name || ''} ${app.last_name || ''}`.trim() || 'ไม่ระบุชื่อ'}</h4>
+                    </div>
+                    <p className="text-xs font-bold text-gray-600">สถานประกอบการ: <span className="text-gray-900 font-black">{app.company_name || 'ไม่ระบุ'}</span></p>
+                    <p className="text-[11px] text-gray-400 font-semibold">ตำแหน่ง: {app.position || '-'} | ยื่นคำร้องเมื่อ: {app.created_at ? new Date(app.created_at).toLocaleDateString('th-TH') : '-'}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0">
+                    <span className={`text-xs font-black px-3.5 py-1.5 rounded-xl ${
+                      app.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                      app.status === 'rejected' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                    }`}>
+                      {app.status === 'approved' ? 'อนุมัติแล้ว' : app.status === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอการอนุมัติ'}
+                    </span>
+
+                    {app.status !== 'approved' && (
+                      <button
+                        onClick={() => handleApproveApp(appId)}
+                        disabled={actionLoadingId === appId}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={16} /> อนุมัติ
+                      </button>
+                    )}
+
+                    {app.status !== 'rejected' && (
+                      <button
+                        onClick={() => handleRejectApp(appId)}
+                        disabled={actionLoadingId === appId}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 active:scale-95 text-red-600 font-black text-xs rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <XCircle size={16} /> ปฏิเสธ
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------- VIEW 2: จัดการนักศึกษา/สิทธิ์ใช้งาน ----------------
+  if (activeTab === 'all_students') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <label className="text-xs font-black text-gray-400 block mb-1.5 pl-1">ชื่อบัญชีผู้ใช้งาน</label>
+            <h3 className="font-black text-gray-800 text-lg">จัดการรายชื่อสิทธิ์การใช้งานของนักศึกษา</h3>
+            <p className="text-xs text-gray-400 font-bold mt-1">ดูรายชื่อนักศึกษาและปรับเปลี่ยนระดับสิทธิ์ (Role) ในระบบ</p>
+          </div>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
             <input
               type="text"
-              className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold focus:border-[#800000] transition-all text-sm"
-              placeholder={getUsernamePlaceholder()}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
+              placeholder="ค้นหารหัสนักศึกษา, ชื่อ..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
             />
           </div>
-          <div>
-            <label className="text-xs font-black text-gray-400 block mb-1.5 pl-1">รหัสผ่านสำหรับเข้าสู่ระบบ</label>
-            <input
-              type="password"
-              className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold focus:border-[#800000] transition-all text-sm"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+        </div>
+
+        {loadingStudents ? (
+          <div className="text-center py-16 bg-white rounded-[35px] border border-gray-100 text-gray-400 font-bold">
+            กำลังโหลดข้อมูลนักศึกษา...
           </div>
-          <button 
-            type="submit" 
-            disabled={loading} 
-            className="w-full bg-[#800000] text-white py-4 mt-2 rounded-2xl font-black shadow-xl hover:bg-black transition-all text-sm tracking-wider disabled:opacity-50"
-          >
-            {loading ? 'กำลังเข้าสู่ระบบ...' : `เข้าสู่ระบบในฐานะ${role === 'student' ? 'นักศึกษา' : role === 'coordinator' ? 'ผู้ประสานงาน' : 'อาจารย์นิเทศก์'}`}
-          </button>
-        </form>
+        ) : (
+          <div className="bg-white rounded-[30px] border border-gray-100 overflow-hidden shadow-sm">
+            <table className="w-full text-left text-xs font-bold text-gray-600">
+              <thead className="bg-gray-50 text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-100">
+                <tr>
+                  <th className="py-4 px-6">รหัสนักศึกษา</th>
+                  <th className="py-4 px-6">ชื่อ-นามสกุล</th>
+                  <th className="py-4 px-6">สาขาวิชา / คณะ</th>
+                  <th className="py-4 px-6 text-center">ระดับสิทธิ์ (Role)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-400">ไม่พบรายชื่อนักศึกษา</td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((st) => (
+                    <tr key={st.id || st.student_id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-6 font-black text-[#800000]">{st.student_id || '-'}</td>
+                      <td className="py-4 px-6 text-gray-800 font-black">{st.first_name} {st.last_name}</td>
+                      <td className="py-4 px-6 text-gray-500">{st.major || '-'} ({st.faculty || '-'})</td>
+                      <td className="py-4 px-6 text-center">
+                        <select
+                          value={st.role || 'student'}
+                          onChange={(e) => handleUpdateRole(st.user_id || st.id, e.target.value)}
+                          className="bg-gray-50 border border-gray-200 text-xs font-black text-gray-700 px-3 py-1.5 rounded-xl outline-none focus:border-[#800000] cursor-pointer"
+                        >
+                          <option value="student">นักศึกษา (Student)</option>
+                          <option value="coordinator">ผู้ประสานงาน (Coordinator)</option>
+                          <option value="advisor">อาจารย์นิเทศก์ (Advisor)</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 
-export default MainAppContainer;
+
+// ==========================================
+// 2. AdvisorManagement Component (อาจารย์นิเทศก์)
+// ==========================================
+export const AdvisorManagement = ({ activeTab }) => {
+  // --- States สำหรับ "นักศึกษาในความดูแล" (my_students) ---
+  const [myStudents, setMyStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // --- States สำหรับ "บันทึกการนิเทศงาน" (supervise) ---
+  const [supervisions, setSupervisions] = useState([]);
+  const [loadingSupervisions, setLoadingSupervisions] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  // Form State สร้างการนิเทศ
+  const [formData, setFormData] = useState({
+    student_id: '',
+    notes: '',
+    supervision_date: new Date().toISOString().split('T')[0],
+    score: 100
+  });
+
+  // 1. API: ดึงรายการนักศึกษาในที่ปรึกษา/ความดูแล
+  const fetchMyStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const res = await axios.get(`${API_BASE}/teacher/students`, getAuthHeaders());
+      const data = Array.isArray(res.data) ? res.data : (res.data.students || []);
+      setMyStudents(data);
+    } catch (err) {
+      console.error("Error fetching teacher students:", err);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // 2. API: ดึงประวัติรายการการนิเทศงานทั้งหมดที่อาจารย์เคยบันทึก
+  const fetchSupervisions = async () => {
+    try {
+      setLoadingSupervisions(true);
+      const res = await axios.get(`${API_BASE}/teacher/supervisions`, getAuthHeaders());
+      const data = Array.isArray(res.data) ? res.data : (res.data.supervisions || []);
+      setSupervisions(data);
+    } catch (err) {
+      console.error("Error fetching supervisions:", err);
+    } finally {
+      setLoadingSupervisions(false);
+    }
+  };
+
+  // Trigger ดึงข้อมูลเมื่อเปลี่ยน Tab
+  useEffect(() => {
+    if (activeTab === 'my_students') {
+      fetchMyStudents();
+    } else if (activeTab === 'supervise') {
+      fetchMyStudents();
+      fetchSupervisions();
+    }
+  }, [activeTab]);
+
+  // 3. API: เพิ่มบันทึกการนิเทศงาน
+  const handleCreateSupervision = async (e) => {
+    e.preventDefault();
+    if (!formData.student_id) {
+      alert('กรุณาเลือกนักศึกษาที่ต้องการนิเทศงาน');
+      return;
+    }
+
+    try {
+      await axios.post(`${API_BASE}/supervision`, formData, getAuthHeaders());
+      alert('บันทึกข้อมูลการนิเทศงานสำเร็จแล้ว');
+      setShowModal(false);
+      setFormData({
+        student_id: '',
+        notes: '',
+        supervision_date: new Date().toISOString().split('T')[0],
+        score: 100
+      });
+      fetchSupervisions();
+    } catch (err) {
+      console.error("Create supervision error:", err);
+      alert('เกิดข้อผิดพลาด ไม่สามารถส่งข้อมูลการนิเทศได้');
+    }
+  };
+
+  // ---------------- VIEW 1: บันทึกการนิเทศงาน ----------------
+  if (activeTab === 'supervise') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="font-black text-gray-800 text-lg">ระบบบันทึกผลการนิเทศงาน</h3>
+            <p className="text-xs text-gray-400 font-bold mt-1">บันทึกรายละเอียด ผลการประเมิน และข้อเสนอแนะในการนิเทศนักศึกษา</p>
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-5 py-3 bg-[#800000] hover:bg-black text-white rounded-2xl font-black text-xs shadow-lg transition-all active:scale-95 flex items-center gap-2"
+          >
+            <Plus size={18} /> บันทึกการนิเทศใหม่
+          </button>
+        </div>
+
+        {/* Modal ฟอร์มกรอกบันทึกการนิเทศ */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-8 rounded-[35px] max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in duration-200">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                <h4 className="font-black text-gray-800 text-base">สร้างบันทึกการนิเทศงาน</h4>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <XCircle size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSupervision} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">นักศึกษาในความดูแล *</label>
+                  <select
+                    required
+                    value={formData.student_id}
+                    onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
+                  >
+                    <option value="">-- เลือกนักศึกษา --</option>
+                    {myStudents.map(st => (
+                      <option key={st.id || st.student_id} value={st.student_id || st.id}>
+                        {st.first_name} {st.last_name} ({st.student_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">วันที่เข้าตรวจนิเทศ *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.supervision_date}
+                    onChange={(e) => setFormData({ ...formData, supervision_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">คะแนนการประเมิน (0 - 100)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.score}
+                    onChange={(e) => setFormData({ ...formData, score: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">บันทึกเพิ่มเติม / ผลการนิเทศ *</label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="ระบุข้อเสนอแนะ ผลการปฏิบัติงาน หรือรายงานจากสถานประกอบการ..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-xs"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-[#800000] hover:bg-black text-white rounded-xl font-black text-xs shadow-md"
+                  >
+                    บันทึกข้อมูล
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* แสดงรายการประวัติการนิเทศงาน */}
+        {loadingSupervisions ? (
+          <div className="text-center py-16 bg-white rounded-[35px] border border-gray-100 text-gray-400 font-bold">
+            กำลังโหลดประวัติการนิเทศงาน...
+          </div>
+        ) : supervisions.length === 0 ? (
+          <div className="bg-white p-16 rounded-[35px] text-center text-gray-400 font-bold border border-gray-100">
+            ยังไม่มีประวัติการบันทึกการนิเทศงานในระบบ
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {supervisions.map((sup) => (
+              <div key={sup.id || sup.supervision_id} className="bg-white p-6 rounded-[30px] border border-gray-100 shadow-sm space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h5 className="font-black text-gray-800 text-base">{sup.student_name || `รหัสนักศึกษา: ${sup.student_id}`}</h5>
+                    <p className="text-xs font-bold text-gray-400 mt-0.5">วันที่นิเทศ: {sup.supervision_date ? new Date(sup.supervision_date).toLocaleDateString('th-TH') : '-'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {sup.score !== undefined && (
+                      <span className="text-xs font-black bg-blue-50 text-blue-600 px-3 py-1 rounded-xl">
+                        คะแนน: {sup.score}/100
+                      </span>
+                    )}
+                    <span className="text-xs font-black bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl">
+                      บันทึกแล้ว
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl">
+                  <p className="text-xs font-semibold text-gray-700 whitespace-pre-line">{sup.notes || 'ไม่มีรายละเอียดบันทึก'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------- VIEW 2: นักศึกษาในความดูแล ----------------
+  if (activeTab === 'my_students') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100">
+          <h3 className="font-black text-gray-800 text-lg">รายชื่อนักศึกษาในความดูแล</h3>
+          <p className="text-xs text-gray-400 font-bold mt-1">รายการนักศึกษาที่คุณได้รับมอบหมายให้เป็นอาจารย์นิเทศก์</p>
+        </div>
+
+        {loadingStudents ? (
+          <div className="text-center py-16 bg-white rounded-[35px] border border-gray-100 text-gray-400 font-bold">
+            กำลังโหลดรายชื่อนักศึกษา...
+          </div>
+        ) : myStudents.length === 0 ? (
+          <div className="bg-white p-16 rounded-[35px] text-center text-gray-400 font-bold border border-gray-100">
+            ขณะนี้ยังไม่มีนักศึกษาในความดูแลของคุณ
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myStudents.map((st) => (
+              <div key={st.id || st.student_id} className="bg-white p-6 rounded-[30px] border border-gray-100 shadow-sm space-y-4 hover:border-gray-200 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-red-50 text-[#800000] font-black rounded-2xl flex items-center justify-center">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-gray-800">{st.first_name} {st.last_name}</h4>
+                    <p className="text-xs font-bold text-gray-400">รหัสนักศึกษา: {st.student_id || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="text-xs font-bold text-gray-500 border-t border-gray-100 pt-3 space-y-1.5">
+                  <p className="flex justify-between">
+                    <span>สาขาวิชา:</span>
+                    <span className="text-gray-800 font-black">{st.major || '-'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span>สถานประกอบการ:</span>
+                    <span className="text-[#800000] font-black">{st.company_name || 'ยังไม่ระบุ'}</span>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
