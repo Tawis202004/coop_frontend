@@ -1647,11 +1647,16 @@ const CoordinatorManagement = ({ activeTab }) => {
   const [students, setStudents] = useState([]);
   const [events, setEvents] = useState([]);
 
-  const [loadingApplications, setLoadingApplications] = useState(false);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [loadingApplications, setLoadingApplications] =
+    useState(false);
 
-  const [error, setError] = useState('');
+  const [loadingStudents, setLoadingStudents] =
+    useState(false);
+
+  const [loadingEvents, setLoadingEvents] =
+    useState(false);
+
+  const [error, setError] = useState("");
 
   // -------------------------------------------------------
   // แปลง Error จาก FastAPI ไม่ให้กลายเป็น [object Object]
@@ -1660,26 +1665,31 @@ const CoordinatorManagement = ({ activeTab }) => {
     const data = error?.response?.data;
 
     if (!data) {
-      return error?.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+      return (
+        error?.message ||
+        "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"
+      );
     }
 
-    if (typeof data === 'string') {
+    if (typeof data === "string") {
       return data;
     }
 
-    if (typeof data.detail === 'string') {
+    if (typeof data.detail === "string") {
       return data.detail;
     }
 
     if (Array.isArray(data.detail)) {
       return data.detail
         .map((item) => {
-          if (typeof item === 'string') return item;
+          if (typeof item === "string") {
+            return item;
+          }
 
           if (item?.msg) {
             const field = Array.isArray(item.loc)
-              ? item.loc.join('.')
-              : '';
+              ? item.loc.join(".")
+              : "";
 
             return field
               ? `${field}: ${item.msg}`
@@ -1688,17 +1698,17 @@ const CoordinatorManagement = ({ activeTab }) => {
 
           return JSON.stringify(item);
         })
-        .join('\n');
+        .join("\n");
     }
 
     if (data.message) {
-      return typeof data.message === 'string'
+      return typeof data.message === "string"
         ? data.message
         : JSON.stringify(data.message, null, 2);
     }
 
     if (data.error) {
-      return typeof data.error === 'string'
+      return typeof data.error === "string"
         ? data.error
         : JSON.stringify(data.error, null, 2);
     }
@@ -1709,23 +1719,35 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // แปลงข้อมูลที่อาจเป็น object ให้แสดงเป็นข้อความ
   // -------------------------------------------------------
-  const displayValue = (value, fallback = '-') => {
-    if (value === null || value === undefined || value === '') {
+  const displayValue = (
+    value,
+    fallback = "-"
+  ) => {
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
       return fallback;
     }
 
-    if (typeof value === 'string' || typeof value === 'number') {
+    if (
+      typeof value === "string" ||
+      typeof value === "number"
+    ) {
       return String(value);
     }
 
     if (Array.isArray(value)) {
       return value
-        .map((item) => displayValue(item, ''))
+        .map((item) =>
+          displayValue(item, "")
+        )
         .filter(Boolean)
-        .join(', ');
+        .join(", ");
     }
 
-    if (typeof value === 'object') {
+    if (typeof value === "object") {
       return (
         value.name ||
         value.company_name ||
@@ -1734,7 +1756,7 @@ const CoordinatorManagement = ({ activeTab }) => {
         value.username ||
         value.student_id ||
         value.id ||
-        '-'
+        "-"
       );
     }
 
@@ -1744,7 +1766,9 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // ดึงชื่อจาก object นักศึกษา
   // -------------------------------------------------------
-  const getStudentName = (application) => {
+  const getStudentName = (
+    application
+  ) => {
     const student =
       application.student ||
       application.user ||
@@ -1752,43 +1776,58 @@ const CoordinatorManagement = ({ activeTab }) => {
       null;
 
     if (application.student_name) {
-      return displayValue(application.student_name);
+      return displayValue(
+        application.student_name
+      );
     }
 
     if (application.full_name) {
-      return displayValue(application.full_name);
+      return displayValue(
+        application.full_name
+      );
     }
 
     if (student) {
       if (student.full_name) {
-        return displayValue(student.full_name);
+        return displayValue(
+          student.full_name
+        );
       }
 
-      if (student.first_name || student.last_name) {
+      if (
+        student.first_name ||
+        student.last_name
+      ) {
         return [
           student.first_name,
-          student.last_name
+          student.last_name,
         ]
           .filter(Boolean)
-          .join(' ');
+          .join(" ");
       }
 
       if (student.name) {
-        return displayValue(student.name);
+        return displayValue(
+          student.name
+        );
       }
 
       if (student.username) {
-        return displayValue(student.username);
+        return displayValue(
+          student.username
+        );
       }
     }
 
-    return '-';
+    return "-";
   };
 
   // -------------------------------------------------------
   // ดึงรหัสนักศึกษา
   // -------------------------------------------------------
-  const getStudentId = (application) => {
+  const getStudentId = (
+    application
+  ) => {
     const student =
       application.student ||
       application.user ||
@@ -1797,38 +1836,20 @@ const CoordinatorManagement = ({ activeTab }) => {
 
     return displayValue(
       application.student_id ||
-      application.studentId ||
-      student?.student_id ||
-      student?.studentId ||
-      student?.id,
-      '-'
-    );
-  };
-
-  // -------------------------------------------------------
-  // ดึงสาขา
-  // -------------------------------------------------------
-  const getMajor = (application) => {
-    const student =
-      application.student ||
-      application.user ||
-      application.student_profile ||
-      null;
-
-    return displayValue(
-      application.major ||
-      application.student_major ||
-      student?.major ||
-      student?.program ||
-      student?.department,
-      '-'
+        application.studentId ||
+        student?.student_id ||
+        student?.studentId ||
+        student?.id,
+      "-"
     );
   };
 
   // -------------------------------------------------------
   // ดึงบริษัท
   // -------------------------------------------------------
-  const getCompanyName = (application) => {
+  const getCompanyName = (
+    application
+  ) => {
     const company =
       application.company ||
       application.company_data ||
@@ -1836,102 +1857,162 @@ const CoordinatorManagement = ({ activeTab }) => {
 
     return displayValue(
       application.company_name ||
-      application.companyName ||
-      company?.company_name ||
-      company?.name ||
-      application.company_id,
-      '-'
+        application.companyName ||
+        company?.company_name ||
+        company?.name ||
+        application.company_id,
+      "-"
     );
   };
 
   // -------------------------------------------------------
   // ดึงสถานะ
   // -------------------------------------------------------
-  const getApplicationStatus = (application) => {
+  const getApplicationStatus = (
+    application
+  ) => {
     return (
       application.status ||
       application.application_status ||
       application.approval_status ||
-      'pending'
+      "pending"
     );
   };
 
   // -------------------------------------------------------
   // ดึง Applications
   // -------------------------------------------------------
-  const fetchApplications = async () => {
-    try {
-      setLoadingApplications(true);
-      setError('');
+  const fetchApplications =
+    async () => {
+      try {
+        setLoadingApplications(true);
+        setError("");
 
-      const response = await api.get('/applications');
+        const response =
+          await api.get(
+            "/applications"
+          );
 
-      console.log('APPLICATION API RESPONSE:', response.data);
+        console.log(
+          "APPLICATION API RESPONSE:",
+          response.data
+        );
 
-      let data = [];
+        let data = [];
 
-      if (Array.isArray(response.data)) {
-        data = response.data;
-      } else if (Array.isArray(response.data?.applications)) {
-        data = response.data.applications;
-      } else if (Array.isArray(response.data?.data)) {
-        data = response.data.data;
-      } else if (response.data) {
-        data = [response.data];
+        if (
+          Array.isArray(
+            response.data
+          )
+        ) {
+          data = response.data;
+        } else if (
+          Array.isArray(
+            response.data?.applications
+          )
+        ) {
+          data =
+            response.data.applications;
+        } else if (
+          Array.isArray(
+            response.data?.data
+          )
+        ) {
+          data =
+            response.data.data;
+        } else if (
+          response.data
+        ) {
+          data = [response.data];
+        }
+
+        setApplications(data);
+      } catch (error) {
+        console.error(
+          "Fetch Applications Error:",
+          error
+        );
+
+        setError(
+          getApiErrorMessage(error)
+        );
+
+        setApplications([]);
+      } finally {
+        setLoadingApplications(false);
       }
-
-      setApplications(data);
-
-    } catch (error) {
-      console.error('Fetch Applications Error:', error);
-
-      setError(getApiErrorMessage(error));
-      setApplications([]);
-    } finally {
-      setLoadingApplications(false);
-    }
-  };
+    };
 
   // -------------------------------------------------------
   // ดึงนักศึกษาทั้งหมด
   // -------------------------------------------------------
-  const fetchStudents = async () => {
-    try {
-      setLoadingStudents(true);
+  const fetchStudents =
+    async () => {
+      try {
+        setLoadingStudents(true);
 
-      const response = await api.get('/students');
+        const response =
+          await api.get(
+            "/students"
+          );
 
-      console.log('STUDENTS API RESPONSE:', response.data);
+        console.log(
+          "STUDENTS API RESPONSE:",
+          response.data
+        );
 
-      let data = [];
+        let data = [];
 
-      if (Array.isArray(response.data)) {
-        data = response.data;
-      } else if (Array.isArray(response.data?.students)) {
-        data = response.data.students;
-      } else if (Array.isArray(response.data?.data)) {
-        data = response.data.data;
+        if (
+          Array.isArray(
+            response.data
+          )
+        ) {
+          data = response.data;
+        } else if (
+          Array.isArray(
+            response.data?.students
+          )
+        ) {
+          data =
+            response.data.students;
+        } else if (
+          Array.isArray(
+            response.data?.data
+          )
+        ) {
+          data =
+            response.data.data;
+        }
+
+        setStudents(data);
+      } catch (error) {
+        console.error(
+          "Fetch Students Error:",
+          error
+        );
+
+        setStudents([]);
+      } finally {
+        setLoadingStudents(false);
       }
-
-      setStudents(data);
-
-    } catch (error) {
-      console.error('Fetch Students Error:', error);
-      setStudents([]);
-    } finally {
-      setLoadingStudents(false);
-    }
-  };
+    };
 
   // -------------------------------------------------------
   // โหลดข้อมูลเมื่อเข้าหน้าจัดการคำร้อง
   // -------------------------------------------------------
   useEffect(() => {
-    if (activeTab === 'manage_requests') {
+    if (
+      activeTab ===
+      "manage_requests"
+    ) {
       fetchApplications();
     }
 
-    if (activeTab === 'all_students') {
+    if (
+      activeTab ===
+      "all_students"
+    ) {
       fetchStudents();
     }
   }, [activeTab]);
@@ -1939,77 +2020,102 @@ const CoordinatorManagement = ({ activeTab }) => {
   // -------------------------------------------------------
   // อนุมัติคำร้อง
   // -------------------------------------------------------
-  const handleApprove = async (applicationId) => {
-    if (!applicationId) {
-      alert('ไม่พบ ID ของคำร้อง');
-      return;
-    }
+  const handleApprove =
+    async (applicationId) => {
+      if (!applicationId) {
+        alert(
+          "ไม่พบ ID ของคำร้อง"
+        );
+        return;
+      }
 
-    try {
-      await api.put(
-        `/applications/${applicationId}/approve`
-      );
+      try {
+        await api.put(
+          `/applications/${applicationId}/approve`
+        );
 
-      alert('อนุมัติคำร้องเรียบร้อยแล้ว');
+        alert(
+          "อนุมัติคำร้องเรียบร้อยแล้ว"
+        );
 
-      await fetchApplications();
+        await fetchApplications();
+      } catch (error) {
+        console.error(
+          "Approve Error:",
+          error
+        );
 
-    } catch (error) {
-      console.error('Approve Error:', error);
-
-      alert(
-        `ไม่สามารถอนุมัติคำร้องได้\n\n${getApiErrorMessage(error)}`
-      );
-    }
-  };
+        alert(
+          `ไม่สามารถอนุมัติคำร้องได้\n\n${getApiErrorMessage(
+            error
+          )}`
+        );
+      }
+    };
 
   // -------------------------------------------------------
   // ปฏิเสธคำร้อง
   // -------------------------------------------------------
-  const handleReject = async (applicationId) => {
-    if (!applicationId) {
-      alert('ไม่พบ ID ของคำร้อง');
-      return;
-    }
+  const handleReject =
+    async (applicationId) => {
+      if (!applicationId) {
+        alert(
+          "ไม่พบ ID ของคำร้อง"
+        );
+        return;
+      }
 
-    const confirmReject = window.confirm(
-      'คุณต้องการปฏิเสธคำร้องนี้ใช่หรือไม่?'
-    );
+      const confirmReject =
+        window.confirm(
+          "คุณต้องการปฏิเสธคำร้องนี้ใช่หรือไม่?"
+        );
 
-    if (!confirmReject) {
-      return;
-    }
+      if (!confirmReject) {
+        return;
+      }
 
-    try {
-      await api.put(
-        `/applications/${applicationId}/reject`
-      );
+      try {
+        await api.put(
+          `/applications/${applicationId}/reject`
+        );
 
-      alert('ปฏิเสธคำร้องเรียบร้อยแล้ว');
+        alert(
+          "ปฏิเสธคำร้องเรียบร้อยแล้ว"
+        );
 
-      await fetchApplications();
+        await fetchApplications();
+      } catch (error) {
+        console.error(
+          "Reject Error:",
+          error
+        );
 
-    } catch (error) {
-      console.error('Reject Error:', error);
-
-      alert(
-        `ไม่สามารถปฏิเสธคำร้องได้\n\n${getApiErrorMessage(error)}`
-      );
-    }
-  };
+        alert(
+          `ไม่สามารถปฏิเสธคำร้องได้\n\n${getApiErrorMessage(
+            error
+          )}`
+        );
+      }
+    };
 
   // -------------------------------------------------------
   // แสดงสถานะ
   // -------------------------------------------------------
-  const renderStatus = (status) => {
-    const normalized = String(status || '')
-      .toLowerCase()
-      .trim();
+  const renderStatus = (
+    status
+  ) => {
+    const normalized =
+      String(status || "")
+        .toLowerCase()
+        .trim();
 
     if (
-      normalized === 'approved' ||
-      normalized === 'approve' ||
-      normalized === 'accepted'
+      normalized ===
+        "approved" ||
+      normalized ===
+        "approve" ||
+      normalized ===
+        "accepted"
     ) {
       return (
         <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-600 border border-emerald-100">
@@ -2019,9 +2125,12 @@ const CoordinatorManagement = ({ activeTab }) => {
     }
 
     if (
-      normalized === 'rejected' ||
-      normalized === 'reject' ||
-      normalized === 'denied'
+      normalized ===
+        "rejected" ||
+      normalized ===
+        "reject" ||
+      normalized ===
+        "denied"
     ) {
       return (
         <span className="px-3 py-1 rounded-full text-xs font-black bg-red-50 text-red-600 border border-red-100">
@@ -2040,36 +2149,70 @@ const CoordinatorManagement = ({ activeTab }) => {
   // =======================================================
   // MANAGE REQUESTS
   // =======================================================
-  if (activeTab === 'manage_requests') {
-    const approvedCount = applications.filter((item) => {
-      const status = String(getApplicationStatus(item)).toLowerCase();
+  if (
+    activeTab ===
+    "manage_requests"
+  ) {
+    const approvedCount =
+      applications.filter(
+        (item) => {
+          const status =
+            String(
+              getApplicationStatus(
+                item
+              )
+            ).toLowerCase();
 
-      return (
-        status === 'approved' ||
-        status === 'approve' ||
-        status === 'accepted'
-      );
-    }).length;
+          return (
+            status ===
+              "approved" ||
+            status ===
+              "approve" ||
+            status ===
+              "accepted"
+          );
+        }
+      ).length;
 
-    const pendingCount = applications.filter((item) => {
-      const status = String(getApplicationStatus(item)).toLowerCase();
+    const pendingCount =
+      applications.filter(
+        (item) => {
+          const status =
+            String(
+              getApplicationStatus(
+                item
+              )
+            ).toLowerCase();
 
-      return (
-        status === 'pending' ||
-        status === 'wait' ||
-        status === 'waiting'
-      );
-    }).length;
+          return (
+            status ===
+              "pending" ||
+            status === "wait" ||
+            status ===
+              "waiting"
+          );
+        }
+      ).length;
 
-    const rejectedCount = applications.filter((item) => {
-      const status = String(getApplicationStatus(item)).toLowerCase();
+    const rejectedCount =
+      applications.filter(
+        (item) => {
+          const status =
+            String(
+              getApplicationStatus(
+                item
+              )
+            ).toLowerCase();
 
-      return (
-        status === 'rejected' ||
-        status === 'reject' ||
-        status === 'denied'
-      );
-    }).length;
+          return (
+            status ===
+              "rejected" ||
+            status === "reject" ||
+            status ===
+              "denied"
+          );
+        }
+      ).length;
 
     return (
       <div className="space-y-6">
@@ -2077,6 +2220,7 @@ const CoordinatorManagement = ({ activeTab }) => {
         {/* ================================================
             STATISTICS
         ================================================= */}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <div className="bg-white p-5 rounded-3xl border border-emerald-100 flex items-center justify-between shadow-sm">
@@ -2087,6 +2231,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
               <h4 className="text-2xl font-black text-emerald-700 mt-1">
                 {approvedCount}
+
                 <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
@@ -2106,6 +2251,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
               <h4 className="text-2xl font-black text-amber-700 mt-1">
                 {pendingCount}
+
                 <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
@@ -2125,6 +2271,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
               <h4 className="text-2xl font-black text-red-700 mt-1">
                 {rejectedCount}
+
                 <span className="text-xs font-bold text-gray-400 ml-1">
                   รายการ
                 </span>
@@ -2141,6 +2288,7 @@ const CoordinatorManagement = ({ activeTab }) => {
         {/* ================================================
             APPLICATION TABLE
         ================================================= */}
+
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
@@ -2148,6 +2296,7 @@ const CoordinatorManagement = ({ activeTab }) => {
             <div>
               <h3 className="text-[#800000] font-black flex items-center gap-2 text-lg">
                 <ClipboardCheck size={24} />
+
                 จัดการและอนุมัติคำร้องเลือกสถานประกอบการ
               </h3>
 
@@ -2157,18 +2306,23 @@ const CoordinatorManagement = ({ activeTab }) => {
             </div>
 
             <button
-              onClick={fetchApplications}
-              disabled={loadingApplications}
+              onClick={
+                fetchApplications
+              }
+              disabled={
+                loadingApplications
+              }
               className="px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-xl text-xs font-black text-gray-600"
             >
               {loadingApplications
-                ? 'กำลังโหลด...'
-                : 'รีเฟรชข้อมูล'}
+                ? "กำลังโหลด..."
+                : "รีเฟรชข้อมูล"}
             </button>
 
           </div>
 
           {/* ERROR */}
+
           {error && (
             <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl text-sm font-bold text-red-600 whitespace-pre-line">
               {error}
@@ -2183,25 +2337,31 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 <tr className="border-b border-gray-100 text-xs font-black text-gray-400 uppercase tracking-wider">
 
+                  {/* รหัสนักศึกษา */}
+
                   <th className="pb-3 pr-4">
                     รหัสนักศึกษา
                   </th>
+
+                  {/* ชื่อ */}
 
                   <th className="pb-3 pr-4">
                     ชื่อ
                   </th>
 
-                  <th className="pb-3 pr-4">
-                    สาขา
-                  </th>
+                  {/* บริษัท */}
 
                   <th className="pb-3 pr-4">
                     บริษัท
                   </th>
 
+                  {/* สถานะ */}
+
                   <th className="pb-3 pr-4 text-center">
                     สถานะ
                   </th>
+
+                  {/* การจัดการ */}
 
                   <th className="pb-3 text-right">
                     การจัดการ
@@ -2217,7 +2377,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="5"
                       className="py-12 text-center text-gray-400"
                     >
                       กำลังโหลดข้อมูลคำร้อง...
@@ -2228,14 +2388,17 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="5"
                       className="py-12 text-center"
                     >
+
                       <div className="text-gray-300 mb-2">
+
                         <ClipboardCheck
                           size={40}
                           className="mx-auto"
                         />
+
                       </div>
 
                       <p className="text-gray-400 font-black">
@@ -2245,127 +2408,140 @@ const CoordinatorManagement = ({ activeTab }) => {
                       <p className="text-xs text-gray-300 mt-1">
                         เมื่อมีนักศึกษายื่นคำร้อง ข้อมูลจะแสดงที่นี่
                       </p>
+
                     </td>
                   </tr>
 
                 ) : (
 
-                  applications.map((application, index) => {
+                  applications.map(
+                    (
+                      application,
+                      index
+                    ) => {
 
-                    const applicationId =
-                      application.id ||
-                      application.application_id ||
-                      application.applicationId;
+                      const applicationId =
+                        application.id ||
+                        application.application_id ||
+                        application.applicationId;
 
-                    const status =
-                      getApplicationStatus(application);
+                      const status =
+                        getApplicationStatus(
+                          application
+                        );
 
-                    const studentName =
-                      getStudentName(application);
+                      const studentName =
+                        getStudentName(
+                          application
+                        );
 
-                    const studentId =
-                      getStudentId(application);
+                      const studentId =
+                        getStudentId(
+                          application
+                        );
 
-                    const major =
-                      getMajor(application);
+                      const companyName =
+                        getCompanyName(
+                          application
+                        );
 
-                    const companyName =
-                      getCompanyName(application);
+                      return (
+                        <tr
+                          key={
+                            applicationId ||
+                            `application-${index}`
+                          }
+                          className="hover:bg-gray-50/50 transition-colors"
+                        >
 
-                    return (
-                      <tr
-                        key={
-                          applicationId ||
-                          `application-${index}`
-                        }
-                        className="hover:bg-gray-50/50 transition-colors"
-                      >
+                          {/* STUDENT ID */}
 
-                        {/* STUDENT ID */}
-                        <td className="py-4 pr-4">
+                          <td className="py-4 pr-4">
 
-                          <span className="font-mono text-xs font-black text-gray-500">
-                            {studentId}
-                          </span>
+                            <span className="font-mono text-xs font-black text-gray-500">
+                              {studentId}
+                            </span>
 
-                        </td>
+                          </td>
 
-                        {/* NAME */}
-                        <td className="py-4 pr-4">
+                          {/* NAME */}
 
-                          <div className="font-black text-gray-800">
-                            {studentName}
-                          </div>
+                          <td className="py-4 pr-4">
 
-                        </td>
+                            <div className="font-black text-gray-800">
+                              {studentName}
+                            </div>
 
-                        {/* MAJOR */}
-                        <td className="py-4 pr-4">
+                          </td>
 
-                          <span className="inline-flex bg-gray-100 px-2.5 py-1 rounded-lg text-xs font-black text-gray-600">
-                            {major}
-                          </span>
+                          {/* COMPANY */}
 
-                        </td>
+                          <td className="py-4 pr-4">
 
-                        {/* COMPANY */}
-                        <td className="py-4 pr-4">
+                            <div className="font-black text-[#800000]">
+                              {companyName}
+                            </div>
 
-                          <div className="font-black text-[#800000]">
-                            {companyName}
-                          </div>
+                          </td>
 
-                        </td>
+                          {/* STATUS */}
 
-                        {/* STATUS */}
-                        <td className="py-4 pr-4 text-center">
-                          {renderStatus(status)}
-                        </td>
+                          <td className="py-4 pr-4 text-center">
+                            {renderStatus(
+                              status
+                            )}
+                          </td>
 
-                        {/* ACTION */}
-                        <td className="py-4 text-right">
+                          {/* ACTION */}
 
-                          <div className="flex justify-end gap-2">
+                          <td className="py-4 text-right">
 
-                            <button
-                              onClick={() =>
-                                handleApprove(
-                                  applicationId
-                                )
-                              }
-                              disabled={
-                                !applicationId ||
-                                String(status).toLowerCase() ===
-                                  'approved'
-                              }
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
-                            >
-                              อนุมัติ
-                            </button>
+                            <div className="flex justify-end gap-2">
 
-                            <button
-                              onClick={() =>
-                                handleReject(
-                                  applicationId
-                                )
-                              }
-                              disabled={
-                                !applicationId ||
-                                String(status).toLowerCase() ===
-                                  'rejected'
-                              }
-                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
-                            >
-                              ปฏิเสธ
-                            </button>
+                              <button
+                                onClick={() =>
+                                  handleApprove(
+                                    applicationId
+                                  )
+                                }
+                                disabled={
+                                  !applicationId ||
+                                  String(
+                                    status
+                                  ).toLowerCase() ===
+                                    "approved"
+                                }
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                              >
+                                อนุมัติ
+                              </button>
 
-                          </div>
+                              <button
+                                onClick={() =>
+                                  handleReject(
+                                    applicationId
+                                  )
+                                }
+                                disabled={
+                                  !applicationId ||
+                                  String(
+                                    status
+                                  ).toLowerCase() ===
+                                    "rejected"
+                                }
+                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                              >
+                                ปฏิเสธ
+                              </button>
 
-                        </td>
+                            </div>
 
-                      </tr>
-                    );
-                  })
+                          </td>
+
+                        </tr>
+                      );
+                    }
+                  )
 
                 )}
 
@@ -2384,7 +2560,11 @@ const CoordinatorManagement = ({ activeTab }) => {
   // =======================================================
   // ALL STUDENTS
   // =======================================================
-  if (activeTab === 'all_students') {
+
+  if (
+    activeTab ===
+    "all_students"
+  ) {
 
     return (
       <div className="space-y-6">
@@ -2458,56 +2638,64 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 ) : (
 
-                  students.map((student, index) => {
+                  students.map(
+                    (
+                      student,
+                      index
+                    ) => {
 
-                    const name =
-                      student.full_name ||
-                      [
-                        student.first_name,
-                        student.last_name
-                      ]
-                        .filter(Boolean)
-                        .join(' ') ||
-                      student.name ||
-                      student.username ||
-                      '-';
+                      const name =
+                        student.full_name ||
+                        [
+                          student.first_name,
+                          student.last_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" ") ||
+                        student.name ||
+                        student.username ||
+                        "-";
 
-                    return (
-                      <tr
-                        key={
-                          student.id ||
-                          student.student_id ||
-                          index
-                        }
-                        className="hover:bg-gray-50/50"
-                      >
-
-                        <td className="py-4">
-                          {student.student_id ||
+                      return (
+                        <tr
+                          key={
                             student.id ||
-                            '-'}
-                        </td>
+                            student.student_id ||
+                            index
+                          }
+                          className="hover:bg-gray-50/50"
+                        >
 
-                        <td className="py-4">
-                          {name}
-                        </td>
+                          <td className="py-4">
+                            {student.student_id ||
+                              student.id ||
+                              "-"}
+                          </td>
 
-                        <td className="py-4">
-                          <span className="bg-gray-100 px-2 py-1 rounded-lg text-xs">
-                            {student.major ||
-                              student.program ||
-                              student.department ||
-                              '-'}
-                          </span>
-                        </td>
+                          <td className="py-4">
+                            {name}
+                          </td>
 
-                        <td className="py-4">
-                          {student.role || 'student'}
-                        </td>
+                          <td className="py-4">
 
-                      </tr>
-                    );
-                  })
+                            <span className="bg-gray-100 px-2 py-1 rounded-lg text-xs">
+                              {student.major ||
+                                student.program ||
+                                student.department ||
+                                "-"}
+                            </span>
+
+                          </td>
+
+                          <td className="py-4">
+                            {student.role ||
+                              "student"}
+                          </td>
+
+                        </tr>
+                      );
+                    }
+                  )
 
                 )}
 
@@ -2525,6 +2713,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
   return null;
 };
+
 
 
 // ============================================================
