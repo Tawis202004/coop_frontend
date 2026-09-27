@@ -865,7 +865,7 @@ const MainAppContainer = () => {
   );
 };
 
-// --- 5. หน้า Login ---
+// --- 5. หน้า Login (ปรับพาทไปใช้ร่วมกันที่พาท /login แล้ว) ---
 const LoginPage = ({ onLogin }) => {
   const [role, setRole] = useState('student'); // 'student' | 'coordinator' | 'advisor'
   const [username, setUsername] = useState('');
@@ -880,12 +880,12 @@ const LoginPage = ({ onLogin }) => {
         username: String(username),
         password: String(password)
       };
-      
+     
       const endpoint = '/login'; 
       const response = await axios.post(`${API_BASE_URL}${endpoint}`, payload);
       
       const token = typeof response.data === 'string' ? response.data : response.data.access_token;
-      
+     
       if (token) {
         localStorage.setItem('token', token);
         localStorage.setItem('userRole', role);
@@ -906,7 +906,7 @@ const LoginPage = ({ onLogin }) => {
         alert("ไม่สามารถเชื่อมต่อเครือข่ายเข้ากับเซิร์ฟเวอร์หลังบ้านได้");
       }
     } finally {
-      // ซ่อมจุดนี้: ลบ loading(false) ออก เหลือเพียง setLoading(false)
+      loading(false);
       setLoading(false);
     }
   };
@@ -924,7 +924,7 @@ const LoginPage = ({ onLogin }) => {
           <RobotLogo className="w-18 h-18" />
         </div>
         <h1 className="text-xl font-black text-gray-800 uppercase mb-6 tracking-tighter">เข้าสู่ระบบระบบสหกิจศึกษา</h1>
-        
+       
         <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1.5 rounded-2xl mb-6">
           <button
             type="button"
@@ -972,11 +972,7 @@ const LoginPage = ({ onLogin }) => {
               required
             />
           </div>
-          <button 
-            type="submit" 
-            disabled={loading} 
-            className="w-full bg-[#800000] text-white py-4 mt-2 rounded-2xl font-black shadow-xl hover:bg-black transition-all text-sm tracking-wider disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-[#800000] text-white py-4 mt-2 rounded-2xl font-black shadow-xl hover:bg-black transition-all text-sm tracking-wider">
             {loading ? 'กำลังเข้าสู่ระบบ...' : `เข้าสู่ระบบในฐานะ${role === 'student' ? 'นักศึกษา' : role === 'coordinator' ? 'ผู้ประสานงาน' : 'อาจารย์นิเทศก์'}`}
           </button>
         </form>
