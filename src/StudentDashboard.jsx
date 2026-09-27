@@ -798,7 +798,7 @@ const MainAppContainer = () => {
           
           let fetchUrl = 'https://coop-backend-02.vercel.app/student/me';
           if (userRole === 'coordinator' || userRole === 'advisor') {
-            fetchUrl = 'https://coop-backend-02.vercel.app/staff/me';
+            fetchUrl = 'https://coop-backend-02.vercel.app/teacher/me';
           }
 
           const response = await axios.get(fetchUrl, {
