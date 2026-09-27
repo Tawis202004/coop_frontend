@@ -2854,6 +2854,8 @@ const AdvisorManagement = ({
   const [profileForm, setProfileForm] =
     useState({
       username: "",
+      rank: "",
+      role: "",
       first_name: "",
       last_name: "",
       phone: "",
@@ -2917,6 +2919,13 @@ const AdvisorManagement = ({
             teacherProfile?.username ||
             localStorage.getItem("username") ||
             "",
+          rank:
+            teacherProfile?.rank ||
+            "",
+          role:
+            teacherProfile?.role ||
+            localStorage.getItem("backendRole") ||
+            "teacher",
           first_name:
             teacherProfile?.first_name ||
             "",
@@ -3037,14 +3046,38 @@ const AdvisorManagement = ({
           String(username)
         );
 
+        const teacherRank =
+          profile?.rank ||
+          profileForm?.rank ||
+          "";
+
+        if (!teacherRank) {
+          alert(
+            "ไม่พบ rank ของอาจารย์ กรุณาตรวจสอบข้อมูล Profile ที่ Backend ส่งกลับมา"
+          );
+          return;
+        }
+
         const payload = {
           username: String(username),
+
+          rank: teacherRank,
+
+          role:
+            profile?.role ||
+            profileForm?.role ||
+            localStorage.getItem("backendRole") ||
+            "teacher",
+
           first_name:
             profileForm?.first_name || "",
+
           last_name:
             profileForm?.last_name || "",
+
           phone:
             profileForm?.phone || "",
+
           email:
             profileForm?.email || "",
         };
