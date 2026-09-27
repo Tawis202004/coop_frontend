@@ -29,7 +29,7 @@ import {
 const API_BASE_URL = 'https://coop-backend-02.vercel.app';
 
 // ==========================================
-// 1. SUB-COMPONENT: Student Section (นักศึกษา)
+// 1. SUB-COMPONENT: Student Section
 // ==========================================
 const StudentApplicationSection = () => {
   const [applications, setApplications] = useState([]);
@@ -38,7 +38,6 @@ const StudentApplicationSection = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // State ฟอร์มยื่นคำร้อง
   const [formData, setFormData] = useState({
     company_name: '',
     position: '',
@@ -99,7 +98,6 @@ const StudentApplicationSection = () => {
 
   return (
     <div className="space-y-6">
-      {/* Messages */}
       {errorMsg && (
         <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center space-x-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -113,7 +111,6 @@ const StudentApplicationSection = () => {
         </div>
       )}
 
-      {/* Form Card */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
         <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2 border-b border-slate-100 pb-3">
           <Plus className="w-4 h-4 text-indigo-600" />
@@ -193,7 +190,6 @@ const StudentApplicationSection = () => {
         </form>
       </div>
 
-      {/* History List */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -267,7 +263,7 @@ const StudentApplicationSection = () => {
 };
 
 // ==========================================
-// 2. SUB-COMPONENT: Teacher Section (อาจารย์)
+// 2. SUB-COMPONENT: Teacher Section
 // ==========================================
 const TeacherApprovalSection = () => {
   const [applications, setApplications] = useState([]);
@@ -362,7 +358,6 @@ const TeacherApprovalSection = () => {
         </button>
       </div>
 
-      {/* Control Tabs */}
       <div className="flex items-center space-x-2 border-b border-slate-100 pb-3 text-xs font-medium">
         <Filter className="w-4 h-4 text-slate-400 mr-1" />
         {[
@@ -480,7 +475,7 @@ const TeacherApprovalSection = () => {
 };
 
 // ==========================================
-// 3. SUB-COMPONENT: Admin Section (ผู้ดูแลระบบ)
+// 3. SUB-COMPONENT: Admin Section
 // ==========================================
 const AdminUserManagementSection = () => {
   const [users, setUsers] = useState([]);
@@ -670,9 +665,9 @@ const AdminUserManagementSection = () => {
 };
 
 // ==========================================
-// MAIN COMPONENT: StudentDashboard.jsx
+// MAIN COMPONENT / APP ENTRY POINT
 // ==========================================
-export default function StudentDashboard() {
+export default function App() {
   const [activeTab, setActiveTab] = useState('student');
   const [userProfile, setUserProfile] = useState({
     username: 'User',
@@ -680,7 +675,6 @@ export default function StudentDashboard() {
   });
 
   useEffect(() => {
-    // อ่านข้อมูลผู้ใช้จาก localStorage (ถ้ามี)
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
@@ -736,7 +730,7 @@ export default function StudentDashboard() {
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Navigation Tabs (สลับดูตาม Role หรือ View) */}
+        {/* Navigation Tabs */}
         <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-1 overflow-x-auto text-xs font-medium">
           <button
             onClick={() => setActiveTab('student')}
