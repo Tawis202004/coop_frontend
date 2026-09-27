@@ -204,101 +204,41 @@ const getApiErrorMessage = (
 ) => {
   const data = error?.response?.data;
 
-  // ไม่มี response จาก server
-  if (!data) {
-    return error?.message || fallback;
-  }
+  if (!data) return error?.message || fallback;
+  if (typeof data === "string") return data;
 
-  // Server ส่งข้อความตรง ๆ
-  if (typeof data === "string") {
-    return data;
-  }
+  const detail = data.detail;
 
-  // FastAPI validation error: detail เป็น array
-  if (Array.isArray(data.detail)) {
-    return data.detail
+  if (Array.isArray(detail)) {
+    return detail
       .map((item) => {
-        if (typeof item === "string") {
-          return item;
-        }
-
+        if (typeof item === "string") return item;
         if (item?.msg) {
           const field = Array.isArray(item.loc)
             ? item.loc.filter(Boolean).join(".")
             : "";
-
-          return field
-            ? `${field}: ${item.msg}`
-            : item.msg;
+          return field ? `${field}: ${item.msg}` : item.msg;
         }
-
-        try {
-          return JSON.stringify(item);
-        } catch {
-          return String(item);
-        }
+        return JSON.stringify(item);
       })
-      .filter(Boolean)
       .join("\n");
   }
 
-  // detail อาจเป็น string หรือ object
-  if (typeof data.detail === "string") {
-    return data.detail;
+  if (typeof detail === "string") return detail;
+
+  if (detail && typeof detail === "object") {
+    return (
+      detail.message ||
+      detail.msg ||
+      detail.error ||
+      JSON.stringify(detail)
+    );
   }
 
-  if (data.detail && typeof data.detail === "object") {
-    if (typeof data.detail.message === "string") {
-      return data.detail.message;
-    }
+  if (typeof data.message === "string") return data.message;
+  if (typeof data.error === "string") return data.error;
 
-    if (typeof data.detail.msg === "string") {
-      return data.detail.msg;
-    }
-
-    try {
-      return JSON.stringify(data.detail, null, 2);
-    } catch {
-      return String(data.detail);
-    }
-  }
-
-  // message อาจเป็น string หรือ object
-  if (typeof data.message === "string") {
-    return data.message;
-  }
-
-  if (data.message && typeof data.message === "object") {
-    if (typeof data.message.message === "string") {
-      return data.message.message;
-    }
-
-    try {
-      return JSON.stringify(data.message, null, 2);
-    } catch {
-      return String(data.message);
-    }
-  }
-
-  // error อาจเป็น string หรือ object
-  if (typeof data.error === "string") {
-    return data.error;
-  }
-
-  if (data.error && typeof data.error === "object") {
-    try {
-      return JSON.stringify(data.error, null, 2);
-    } catch {
-      return String(data.error);
-    }
-  }
-
-  // fallback สุดท้าย: แปลง response ทั้งก้อนให้อ่านได้
-  try {
-    return JSON.stringify(data, null, 2);
-  } catch {
-    return fallback;
-  }
+  return fallback;
 };
 
 const normalizeProfile = (data) => {
@@ -1515,6 +1455,9 @@ const StudentApplication = () => {
   const [loadingData, setLoadingData] =
     useState(true);
 
+  const [studentProfile, setStudentProfile] =
+    useState(null);
+
   const loadData = async () => {
     try {
       setLoadingData(true);
@@ -1522,10 +1465,16 @@ const StudentApplication = () => {
       const [
         companiesResponse,
         applicationsResponse,
+        profileResponse,
       ] = await Promise.all([
         apiService.getCompanies(),
         apiService.getApplications(),
+        apiService.getStudentProfile(),
       ]);
+
+      setStudentProfile(
+        normalizeProfile(profileResponse.data)
+      );
 
       setCompanies(
         normalizeList(
@@ -1577,7 +1526,20 @@ const StudentApplication = () => {
     try {
       setLoading(true);
 
+      const studentId =
+        studentProfile?.student_id ||
+        studentProfile?.id ||
+        localStorage.getItem("userId");
+
+      if (!studentId) {
+        alert(
+          "ไม่พบรหัสนักศึกษา กรุณาเข้าสู่ระบบใหม่หรือกรอกข้อมูลนักศึกษาให้เรียบร้อยก่อนสมัคร"
+        );
+        return;
+      }
+
       await apiService.applyCompany({
+        student_id: studentId,
         company_id: companyId,
       });
 
