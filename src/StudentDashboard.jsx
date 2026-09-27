@@ -3075,9 +3075,6 @@ const AdvisorManagement = ({
           last_name:
             profileForm?.last_name || "",
 
-          phone:
-            profileForm?.phone || "",
-
           email:
             profileForm?.email || "",
         };
@@ -3395,7 +3392,7 @@ const AdvisorManagement = ({
             ],
             [
               "phone",
-              "เบอร์โทรศัพท์",
+              "ตำแหน่ง (rank)",
             ],
             [
               "email",
