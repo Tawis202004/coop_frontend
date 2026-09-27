@@ -1268,7 +1268,8 @@ const StudentProfile = ({
 
       const username =
         profileData?.username ||
-        localStorage.getItem("username");
+        localStorage.getItem("username") ||
+        localStorage.getItem("loginUsername");
 
       if (!username) {
         alert(
@@ -1276,6 +1277,12 @@ const StudentProfile = ({
         );
         return;
       }
+
+      // Keep it available for future Profile updates.
+      localStorage.setItem(
+        "username",
+        String(username)
+      );
 
       const payload = {
         username,
@@ -3485,6 +3492,14 @@ const MainAppContainer = () => {
       "userId"
     );
 
+    localStorage.removeItem(
+      "username"
+    );
+
+    localStorage.removeItem(
+      "loginUsername"
+    );
+
     setIsLoggedIn(false);
     setProfileData(null);
     setUserRole("student");
@@ -4590,6 +4605,15 @@ const LoginPage = ({
             localStorage.setItem(
               "userId",
               String(userId)
+            );
+          }
+
+          // Keep the username so Profile updates can always
+          // include the required backend field.
+          if (loggedInUsername) {
+            localStorage.setItem(
+              "username",
+              String(loggedInUsername)
             );
           }
 
