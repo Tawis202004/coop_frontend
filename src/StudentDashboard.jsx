@@ -36,7 +36,7 @@ const RobotLogo = ({ className = "w-10 h-10" }) => (
   </svg>
 );
 
-// --- 1. ส่วนแสดงข้อมูลสถานประกอบการ ---
+// --- 1. ส่วนแสดงและจัดการข้อมูลสถานประกอบการ (เพิ่ม / ลบ / ตัวกรองขั้นสูง) ---
 const CompanyManagement = () => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,34 +45,112 @@ const CompanyManagement = () => {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [filterIndustry, setFilterIndustry] = useState('All');
 
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/companies', {
-          params: searchTerm ? { search: searchTerm } : {}
-        });
-        const data = Array.isArray(res.data) ? res.data : (res.data.companies || []);
-        setCompanies(data);
-      } catch (err) {
-        console.error("Fetch Error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // สถานะสำหรับเปิด/ปิด Modal เพิ่มบริษัทใหม่
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCompany, setNewCompany] = useState({
+    company_name: '',
+    industry: 'เทคโนโลยี / IT',
+    address: '',
+    phone: '',
+    allowance: '',
+    accommodation: '',
+    shuttle: '',
+    welfare: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
 
+  // ดึงข้อมูลสถานประกอบการ
+  const fetchCompanies = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.get('https://coop-backend-02.vercel.app/companies', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        params: searchTerm ? { search: searchTerm } : {}
+      });
+      const data = Array.isArray(res.data) ? res.data : (res.data.companies || []);
+      setCompanies(data);
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchCompanies();
     }, 400);
-
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
+  // ฟังก์ชันเพิ่มบริษัทใหม่
+  const handleAddCompany = async (e) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      const token = localStorage.getItem('token');
+      await axios.post('https://coop-backend-02.vercel.app/companies', newCompany, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      alert('เพิ่มสถานประกอบการสำเร็จ!');
+      setShowAddModal(false);
+      setNewCompany({
+        company_name: '',
+        industry: 'เทคโนโลยี / IT',
+        address: '',
+        phone: '',
+        allowance: '',
+        accommodation: '',
+        shuttle: '',
+        welfare: ''
+      });
+      fetchCompanies();
+    } catch (err) {
+      console.error("Add Company Error:", err);
+      alert('ไม่สามารถเพิ่มสถานประกอบการได้ กรุณาตรวจสอบข้อมูล');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ฟังก์ชันลบสถานประกอบการ
+  const handleDeleteCompany = async (id, name) => {
+    if (!window.confirm(`คุณต้องการลบสถานประกอบการ "${name}" ใช่หรือไม่?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`https://coop-backend-02.vercel.app/companies/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      alert('ลบสถานประกอบการเรียบร้อยแล้ว');
+      setSelectedCompany(null);
+      fetchCompanies();
+    } catch (err) {
+      console.error("Delete Error:", err);
+      alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+    }
+  };
+
+  // ตัวกรองประเภทธุรกิจที่ขยายเพิ่มเติม
   const filteredCompanies = companies.filter(company => {
     if (filterIndustry === 'All') return true;
-    if (filterIndustry === 'Industry') return company.industry?.includes('อุตสาหกรรม') || company.industry?.toLowerCase().includes('manufacture');
-    if (filterIndustry === 'IT') return company.industry?.includes('เทคโนโลยี') || company.industry?.toLowerCase().includes('it') || company.industry?.toLowerCase().includes('tech');
-    if (filterIndustry === 'Other') return !company.industry;
+    const ind = (company.industry || '').toLowerCase();
+    
+    if (filterIndustry === 'IT') {
+      return ind.includes('เทคโนโลยี') || ind.includes('it') || ind.includes('tech') || ind.includes('ซอฟต์แวร์');
+    }
+    if (filterIndustry === 'Industry') {
+      return ind.includes('อุตสาหกรรม') || ind.includes('โรงงาน') || ind.includes('manufacture') || ind.includes('ผลิต');
+    }
+    if (filterIndustry === 'Finance') {
+      return ind.includes('การเงิน') || ind.includes('ธนาคาร') || ind.includes('finance') || ind.includes('insurance');
+    }
+    if (filterIndustry === 'Service') {
+      return ind.includes('บริการ') || ind.includes('โรงแรม') || ind.includes('service') || ind.includes('hospitality');
+    }
+    if (filterIndustry === 'Other') {
+      return !company.industry || ind.includes('อื่นๆ') || ind.includes('ทั่วไป');
+    }
     return true;
   });
 
@@ -83,14 +161,22 @@ const CompanyManagement = () => {
           <Factory size={24}/> รายชื่อสถานประกอบการ
         </h3>
         
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+          {/* ปุ่มเปิด Modal เพิ่มบริษัท */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-[#800000] text-white text-xs font-black rounded-xl hover:bg-black transition-all shadow-md flex items-center gap-1.5"
+          >
+            + เพิ่มสถานประกอบการ
+          </button>
+
           <div className="relative flex-1 md:flex-none">
             <input
               type="text"
-              placeholder="ค้นหาบริษัท (เช่น CP)..."
+              placeholder="ค้นหาบริษัท..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 px-4 py-2 text-sm bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-[#800000] font-bold"
+              className="w-full md:w-56 px-4 py-2 text-sm bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-[#800000] font-bold"
             />
           </div>
           
@@ -102,14 +188,17 @@ const CompanyManagement = () => {
               <Filter size={18} />
             </button>
 
+            {/* เมนูตัวกรองที่เพิ่มหมวดหมู่ให้หลากหลายขึ้น */}
             {showFilterMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
-                <p className="px-4 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">ประเภทธุรกิจ</p>
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                <p className="px-4 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider">กรองตามประเภทธุรกิจ</p>
                 {[
                   { id: 'All', name: 'ทั้งหมด' },
-                  { id: 'Industry', name: 'โรงงาน / อุตสาหกรรม' },
-                  { id: 'IT', name: 'IT / เทคโนโลยี' },
-                  { id: 'Other', name: 'ทั่วไป / ไม่ระบุ' }
+                  { id: 'IT', name: '💻 เทคโนโลยี / IT / ซอฟต์แวร์' },
+                  { id: 'Industry', name: '🏭 โรงงาน / อุตสาหกรรม / ผลิต' },
+                  { id: 'Finance', name: '💰 การเงิน / ธนาคาร / ประกัน' },
+                  { id: 'Service', name: '🏨 บริการ / โรงแรม / ท่องเที่ยว' },
+                  { id: 'Other', name: '📦 อื่นๆ / ทั่วไป' }
                 ].map((type) => (
                   <button
                     key={type.id}
@@ -132,14 +221,17 @@ const CompanyManagement = () => {
         <div className="mb-4 flex items-center gap-2">
           <span className="text-xs font-bold text-gray-400">ตัวกรองปัจจุบัน:</span>
           <span className="inline-flex items-center gap-1 bg-red-50 text-[#800000] text-xs font-black px-3 py-1 rounded-full border border-red-100">
-            {filterIndustry === 'Industry' && 'โรงงาน / อุตสาหกรรม'}
-            {filterIndustry === 'IT' && 'IT / เทคโนโลยี'}
-            {filterIndustry === 'Other' && 'ทั่วไป / ไม่ระบุ'}
+            {filterIndustry === 'IT' && 'เทคโนโลยี / IT / ซอฟต์แวร์'}
+            {filterIndustry === 'Industry' && 'โรงงาน / อุตสาหกรรม / ผลิต'}
+            {filterIndustry === 'Finance' && 'การเงิน / ธนาคาร / ประกัน'}
+            {filterIndustry === 'Service' && 'บริการ / โรงแรม / ท่องเที่ยว'}
+            {filterIndustry === 'Other' && 'อื่นๆ / ทั่วไป'}
             <X size={12} className="cursor-pointer ml-1" onClick={() => setFilterIndustry('All')} />
           </span>
         </div>
       )}
 
+      {/* รายการบริษัท */}
       <div className="space-y-4">
         {loading ? (
           <div className="text-center py-10 text-gray-400 font-bold">กำลังดึงข้อมูล...</div>
@@ -160,7 +252,7 @@ const CompanyManagement = () => {
                   <p className="font-black text-gray-800">{company.company_name}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
                     <p className="text-xs text-gray-400 font-bold flex items-center gap-1">
-                      <MapPin size={12} /> {company.address}
+                      <MapPin size={12} /> {company.address || 'ไม่ระบุที่อยู่'}
                     </p>
                     {company.industry && (
                       <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md font-bold">
@@ -176,6 +268,7 @@ const CompanyManagement = () => {
         )}
       </div>
 
+      {/* Modal รายละเอียดบริษัท & ปุ่มลบ */}
       {selectedCompany && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden relative">
@@ -202,7 +295,7 @@ const CompanyManagement = () => {
                   <MapPin className="text-[#800000] shrink-0" size={20} />
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase">ที่ตั้ง</p>
-                    <p className="text-gray-800 font-bold">{selectedCompany.address}</p>
+                    <p className="text-gray-800 font-bold text-xs">{selectedCompany.address || '-'}</p>
                   </div>
                 </div>
 
@@ -210,7 +303,7 @@ const CompanyManagement = () => {
                   <Phone className="text-[#800000] shrink-0" size={20} />
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase">เบอร์โทรศัพท์</p>
-                    <p className="text-gray-800 font-black text-lg">
+                    <p className="text-gray-800 font-black text-base">
                       {selectedCompany.phone || "ไม่ระบุเบอร์โทร"}
                     </p>
                   </div>
@@ -242,18 +335,153 @@ const CompanyManagement = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex justify-end">
-              <button onClick={() => setSelectedCompany(null)} className="px-10 py-3 bg-white text-gray-600 rounded-2xl font-black border border-gray-200 shadow-sm">
+            <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex justify-between items-center">
+              {/* ปุ่มลบสถานประกอบการ */}
+              <button
+                onClick={() => handleDeleteCompany(selectedCompany.id || selectedCompany._id, selectedCompany.company_name)}
+                className="px-6 py-3 bg-red-100 text-red-700 rounded-2xl font-black text-xs hover:bg-red-200 transition-all flex items-center gap-1.5"
+              >
+                ลบสถานประกอบการนี้
+              </button>
+              
+              <button onClick={() => setSelectedCompany(null)} className="px-8 py-3 bg-white text-gray-600 rounded-2xl font-black border border-gray-200 shadow-sm text-xs">
                 ปิดหน้าต่าง
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal เพิ่มสถานประกอบการใหม่ */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden relative">
+            <div className="bg-[#800000] p-6 text-white flex justify-between items-center">
+              <h4 className="font-black text-base">เพิ่มสถานประกอบการใหม่</h4>
+              <button onClick={() => setShowAddModal(false)} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCompany} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <label className="text-xs font-black text-gray-500 block mb-1">ชื่อสถานประกอบการ *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น บริษัท เทคโนโลยี จำกัด"
+                  value={newCompany.company_name}
+                  onChange={(e) => setNewCompany({...newCompany, company_name: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-gray-500 block mb-1">ประเภทอุตสาหกรรม</label>
+                <select
+                  value={newCompany.industry}
+                  onChange={(e) => setNewCompany({...newCompany, industry: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                >
+                  <option value="เทคโนโลยี / IT">เทคโนโลยี / IT / ซอฟต์แวร์</option>
+                  <option value="โรงงาน / อุตสาหกรรม">โรงงาน / อุตสาหกรรม / ผลิต</option>
+                  <option value="การเงิน / ธนาคาร">การเงิน / ธนาคาร / ประกัน</option>
+                  <option value="บริการ / โรงแรม">บริการ / โรงแรม / ท่องเที่ยว</option>
+                  <option value="อื่นๆ">อื่นๆ / ทั่วไป</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-gray-500 block mb-1">ที่ตั้ง</label>
+                <input
+                  type="text"
+                  placeholder="ที่อยู่บริษัท"
+                  value={newCompany.address}
+                  onChange={(e) => setNewCompany({...newCompany, address: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-gray-500 block mb-1">เบอร์โทรศัพท์</label>
+                <input
+                  type="text"
+                  placeholder="02-XXX-XXXX"
+                  value={newCompany.phone}
+                  onChange={(e) => setNewCompany({...newCompany, phone: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-black text-gray-500 block mb-1">เบี้ยเลี้ยง</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น 300 บาท/วัน"
+                    value={newCompany.allowance}
+                    onChange={(e) => setNewCompany({...newCompany, allowance: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 block mb-1">ที่พัก</label>
+                  <input
+                    type="text"
+                    placeholder="มี / ไม่มี"
+                    value={newCompany.accommodation}
+                    onChange={(e) => setNewCompany({...newCompany, accommodation: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-black text-gray-500 block mb-1">รถรับส่ง</label>
+                  <input
+                    type="text"
+                    placeholder="มี / ไม่มี"
+                    value={newCompany.shuttle}
+                    onChange={(e) => setNewCompany({...newCompany, shuttle: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 block mb-1">สวัสดิการอื่นๆ</label>
+                  <input
+                    type="text"
+                    placeholder="ประกันสุขภาพ ฯลฯ"
+                    value={newCompany.welfare}
+                    onChange={(e) => setNewCompany({...newCompany, welfare: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#800000]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-1/2 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-200 transition-all"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-1/2 py-3 bg-[#800000] text-white rounded-2xl font-black text-xs shadow-lg hover:bg-black transition-all"
+                >
+                  {submitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 // --- 2. ส่วนของอาจารย์ผู้ประสานงานรายวิชา (Coordinator View) ---
 const CoordinatorManagement = ({ activeTab }) => {
   const [students, setStudents] = useState([
