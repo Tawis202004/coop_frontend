@@ -3147,6 +3147,49 @@ const AdvisorManagement = ({
         // API ส่วนอื่นโหลดแยกกัน แต่ละตัว fail ได้โดยไม่กระทบ Profile
         const otherRequests = [];
 
+        // โหลดนักศึกษาในความดูแลของอาจารย์
+        otherRequests.push(
+          apiService
+            .getTeacherStudents()
+            .then((response) => {
+              console.log(
+                "GET /teacher/students RAW RESPONSE:",
+                response?.data
+              );
+
+              const payload =
+                response?.data;
+
+              const studentList =
+                Array.isArray(payload)
+                  ? payload
+                  : Array.isArray(payload?.students)
+                  ? payload.students
+                  : Array.isArray(payload?.data)
+                  ? payload.data
+                  : Array.isArray(payload?.items)
+                  ? payload.items
+                  : [];
+
+              console.log(
+                "NORMALIZED TEACHER STUDENTS:",
+                studentList
+              );
+
+              setMyStudents(
+                studentList
+              );
+            })
+            .catch((error) => {
+              console.error(
+                "Teacher Students API Error:",
+                error
+              );
+
+              setMyStudents([]);
+            })
+        );
+
         otherRequests.push(
           apiService
             .getTeacherDashboard()
@@ -3485,12 +3528,10 @@ const AdvisorManagement = ({
                       <div className="border-b border-gray-200/60 pb-4 mb-4">
 
                         <h4 className="font-black text-gray-800">
-                          {student.first_name ||
+                          {student.student_name ||
                             student.name ||
+                            `${student.first_name || ""} ${student.last_name || ""}`.trim() ||
                             "-"}
-                          {" "}
-                          {student.last_name ||
-                            ""}
                         </h4>
 
                         <p className="text-xs text-gray-400 font-bold mt-1">
@@ -3609,12 +3650,10 @@ const AdvisorManagement = ({
                   <div className="flex-1">
 
                     <h4 className="font-black text-gray-800">
-                      {student.first_name ||
+                      {student.student_name ||
                         student.name ||
+                        `${student.first_name || ""} ${student.last_name || ""}`.trim() ||
                         "-"}
-                      {" "}
-                      {student.last_name ||
-                        ""}
                     </h4>
 
                     <p className="text-[11px] text-gray-400 font-bold">
