@@ -2921,6 +2921,7 @@ const AdvisorManagement = ({
             "",
           rank:
             teacherProfile?.rank ||
+            localStorage.getItem("teacherRank") ||
             "",
           role:
             teacherProfile?.role ||
@@ -3047,27 +3048,40 @@ const AdvisorManagement = ({
         );
 
         const teacherRank =
+          profileForm?.rank?.trim() ||
           profile?.rank ||
-          profileForm?.rank ||
+          localStorage.getItem("teacherRank") ||
           "";
 
         if (!teacherRank) {
           alert(
-            "ไม่พบ rank ของอาจารย์ กรุณาตรวจสอบข้อมูล Profile ที่ Backend ส่งกลับมา"
+            "กรุณากรอกตำแหน่ง (rank)"
           );
           return;
         }
+
+        localStorage.setItem(
+          "teacherRank",
+          String(teacherRank)
+        );
+
+        const teacherRole =
+          profileForm?.role ||
+          profile?.role ||
+          localStorage.getItem("backendRole") ||
+          "teacher";
+
+        localStorage.setItem(
+          "backendRole",
+          String(teacherRole)
+        );
 
         const payload = {
           username: String(username),
 
           rank: teacherRank,
 
-          role:
-            profile?.role ||
-            profileForm?.role ||
-            localStorage.getItem("backendRole") ||
-            "teacher",
+          role: teacherRole,
 
           first_name:
             profileForm?.first_name || "",
@@ -3078,6 +3092,11 @@ const AdvisorManagement = ({
           email:
             profileForm?.email || "",
         };
+
+        console.log(
+          "PUT /teacher/me PAYLOAD:",
+          payload
+        );
 
         await apiService.updateTeacherProfile(
           payload
