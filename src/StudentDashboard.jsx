@@ -204,41 +204,59 @@ const getApiErrorMessage = (
 ) => {
   const data = error?.response?.data;
 
-  if (!data) return error?.message || fallback;
-  if (typeof data === "string") return data;
-
-  const detail = data.detail;
-
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (item?.msg) {
-          const field = Array.isArray(item.loc)
-            ? item.loc.filter(Boolean).join(".")
-            : "";
-          return field ? `${field}: ${item.msg}` : item.msg;
-        }
-        return JSON.stringify(item);
-      })
-      .join("\n");
+  if (!data) {
+    return error?.message || fallback;
   }
 
-  if (typeof detail === "string") return detail;
-
-  if (detail && typeof detail === "object") {
-    return (
-      detail.message ||
-      detail.msg ||
-      detail.error ||
-      JSON.stringify(detail)
-    );
+  if (typeof data === "string") {
+    return data;
   }
 
-  if (typeof data.message === "string") return data.message;
-  if (typeof data.error === "string") return data.error;
+  const extractMessage = (value) => {
+    if (!value) return null;
 
-  return fallback;
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      const messages = value
+        .map((item) => extractMessage(item))
+        .filter(Boolean);
+
+      return messages.length
+        ? messages.join("\n")
+        : null;
+    }
+
+    if (typeof value === "object") {
+      return (
+        value.message ||
+        value.msg ||
+        value.detail ||
+        value.error ||
+        value.type ||
+        null
+      );
+    }
+
+    return null;
+  };
+
+  const message =
+    extractMessage(data.detail) ||
+    extractMessage(data.message) ||
+    extractMessage(data.error);
+
+  if (message) {
+    return message;
+  }
+
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return fallback;
+  }
 };
 
 const normalizeProfile = (data) => {
@@ -1248,13 +1266,34 @@ const StudentProfile = ({
     try {
       setSaving(true);
 
+      const username =
+        profileData?.username ||
+        localStorage.getItem("username");
+
+      if (!username) {
+        alert(
+          "ไม่พบ username ของผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่"
+        );
+        return;
+      }
+
+      const payload = {
+        username,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        faculty: form.faculty,
+        major: form.major,
+        semester: form.semester,
+        phone: form.phone,
+      };
+
       if (profileData) {
         await apiService.updateStudentProfile(
-          form
+          payload
         );
       } else {
         await apiService.createStudentProfile(
-          form
+          payload
         );
       }
 
@@ -1446,6 +1485,9 @@ const StudentApplication = () => {
   const [applications, setApplications] =
     useState([]);
 
+  const [studentProfile, setStudentProfile] =
+    useState(null);
+
   const [companyId, setCompanyId] =
     useState("");
 
@@ -1455,9 +1497,6 @@ const StudentApplication = () => {
   const [loadingData, setLoadingData] =
     useState(true);
 
-  const [studentProfile, setStudentProfile] =
-    useState(null);
-
   const loadData = async () => {
     try {
       setLoadingData(true);
@@ -1465,16 +1504,12 @@ const StudentApplication = () => {
       const [
         companiesResponse,
         applicationsResponse,
-        profileResponse,
+        studentResponse,
       ] = await Promise.all([
         apiService.getCompanies(),
         apiService.getApplications(),
         apiService.getStudentProfile(),
       ]);
-
-      setStudentProfile(
-        normalizeProfile(profileResponse.data)
-      );
 
       setCompanies(
         normalizeList(
@@ -1495,6 +1530,12 @@ const StudentApplication = () => {
             "data",
             "items",
           ]
+        )
+      );
+
+      setStudentProfile(
+        normalizeProfile(
+          studentResponse.data
         )
       );
     } catch (error) {
@@ -1523,20 +1564,20 @@ const StudentApplication = () => {
       return;
     }
 
+    const studentId =
+      studentProfile?.student_id ||
+      studentProfile?.id ||
+      localStorage.getItem("userId");
+
+    if (!studentId) {
+      alert(
+        "ไม่พบรหัสนักศึกษา กรุณาโหลด Profile ใหม่หรือเข้าสู่ระบบใหม่"
+      );
+      return;
+    }
+
     try {
       setLoading(true);
-
-      const studentId =
-        studentProfile?.student_id ||
-        studentProfile?.id ||
-        localStorage.getItem("userId");
-
-      if (!studentId) {
-        alert(
-          "ไม่พบรหัสนักศึกษา กรุณาเข้าสู่ระบบใหม่หรือกรอกข้อมูลนักศึกษาให้เรียบร้อยก่อนสมัคร"
-        );
-        return;
-      }
 
       await apiService.applyCompany({
         student_id: studentId,
