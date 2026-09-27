@@ -1432,36 +1432,43 @@ const MyTeacher = () => {
     useState("");
 
   const fetchTeacher = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  try {
+    setLoading(true);
+    setError("");
 
-      const response =
-  await apiService.getMyTeacher();
+    const response =
+      await apiService.getMyTeacher();
 
-console.log(
-  "STUDENT TEACHER RESPONSE:",
-  response.data
-);
+    console.log(
+      "STUDENT TEACHER RESPONSE JSON:",
+      JSON.stringify(
+        response.data,
+        null,
+        2
+      )
+    );
 
-const data = response.data;
+    const data = response.data;
 
-      setTeacher(
-        normalizeProfile(data)
-      );
-    } catch (error) {
-      console.error(error);
+    setTeacher(
+      normalizeProfile(data)
+    );
+  } catch (error) {
+    console.error(
+      "GET /student/teacher ERROR:",
+      error
+    );
 
-      setError(
-        getApiErrorMessage(
-          error,
-          "ไม่สามารถโหลดข้อมูลอาจารย์ได้"
-        )
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(
+      getApiErrorMessage(
+        error,
+        "ไม่สามารถโหลดข้อมูลอาจารย์ได้"
+      )
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchTeacher();
