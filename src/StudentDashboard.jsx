@@ -1432,43 +1432,85 @@ const MyTeacher = () => {
     useState("");
 
   const fetchTeacher = async () => {
-  try {
-    setLoading(true);
-    setError("");
+    try {
+      setLoading(true);
+      setError("");
 
-    const response =
-      await apiService.getMyTeacher();
+      const response =
+        await apiService.getMyTeacher();
 
-    console.log(
-      "STUDENT TEACHER RESPONSE JSON:",
-      JSON.stringify(
-        response.data,
-        null,
-        2
-      )
-    );
+      console.log(
+        "STUDENT TEACHER RESPONSE JSON:",
+        JSON.stringify(
+          response.data,
+          null,
+          2
+        )
+      );
 
-    const data = response.data;
+      const data = response.data;
 
-    setTeacher(
-      normalizeProfile(data)
-    );
-  } catch (error) {
-    console.error(
-      "GET /student/teacher ERROR:",
-      error
-    );
+      // Backend /student/teacher ส่งข้อมูลเป็น Array
+      // เช่น [{ teacher_name: "ฐิมาพร เพชรแก้ว", ... }]
+      const teacherData =
+        Array.isArray(data)
+          ? data[0]
+          : data;
 
-    setError(
-      getApiErrorMessage(
-        error,
-        "ไม่สามารถโหลดข้อมูลอาจารย์ได้"
-      )
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      if (!teacherData) {
+        setTeacher(null);
+        return;
+      }
+
+      const teacherName =
+        teacherData?.teacher_name ||
+        teacherData?.name ||
+        "";
+
+      const teacherNameParts =
+        teacherName
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+
+      setTeacher({
+        ...teacherData,
+
+        teacher_name:
+          teacherName,
+
+        name:
+          teacherName,
+
+        // รองรับ UI เดิมที่อ่าน first_name / last_name
+        first_name:
+          teacherData?.first_name ||
+          teacherNameParts[0] ||
+          "",
+
+        last_name:
+          teacherData?.last_name ||
+          teacherNameParts
+            .slice(1)
+            .join(" ") ||
+          "",
+      });
+    } catch (error) {
+      console.error(
+        "GET /student/teacher ERROR:",
+        error
+      );
+
+      setError(
+        getApiErrorMessage(
+          error,
+          "ไม่สามารถโหลดข้อมูลอาจารย์ได้"
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchTeacher();
