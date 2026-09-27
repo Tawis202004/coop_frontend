@@ -568,10 +568,9 @@ const MainAppContainer = () => {
           setFetchingUser(true);
           const token = localStorage.getItem('token');
           
-          // แก้ไข Endpoint ฝั่ง Staff/Teacher ให้ตรงกับ Backend (/teacher/me)
           let fetchUrl = 'https://coop-backend-02.vercel.app/student/me';
           if (userRole === 'coordinator' || userRole === 'advisor') {
-            fetchUrl = 'https://coop-backend-02.vercel.app/teacher/me';
+            fetchUrl = 'https://coop-backend-02.vercel.app/staff/me';
           }
 
           const response = await axios.get(fetchUrl, {
@@ -613,7 +612,7 @@ const MainAppContainer = () => {
     setIsLoggedIn(true);
   };
 
-  const displayId = profileData?.student_id || profileData?.teacher_id || profileData?.id || profileData?.username || '-';
+  const displayId = profileData?.student_id || profileData?.staff_id || profileData?.username || '-';
   const displayFullName = profileData?.first_name && profileData?.last_name
     ? `${profileData.first_name} ${profileData.last_name}`
     : fetchingUser ? 'กำลังโหลด...' : 'อาจารย์ประจำวิชา / เจ้าหน้าที่';
@@ -646,7 +645,7 @@ const MainAppContainer = () => {
 
   return (
     <div className="flex h-screen w-full bg-[#f1f5f9] font-['Sarabun'] antialiased overflow-hidden">
-      
+     
       {/* Sidebar */}
       <aside className={`fixed md:relative inset-y-0 left-0 z-40 bg-[#800000] text-white transition-all duration-300 flex flex-col shrink-0 ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full md:translate-x-0 md:w-24'}`}>
         <div className="p-6 flex items-center justify-center border-b border-white/10 relative h-24 shrink-0">
@@ -682,7 +681,7 @@ const MainAppContainer = () => {
 
       {/* ขอบเขตเนื้อหาหลักฝั่งขวา */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        
+       
         {/* Header แถบบน */}
         <header className="h-20 bg-white border-b flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
@@ -695,7 +694,7 @@ const MainAppContainer = () => {
               {activeTab === 'overview' ? 'Dashboard Overview' : activeTab}
             </h2>
           </div>
-          
+         
           <div className="flex items-center gap-3 bg-gray-50 pl-4 pr-3 py-1.5 rounded-2xl border border-gray-100">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-black text-gray-700">
@@ -717,7 +716,7 @@ const MainAppContainer = () => {
         {/* ส่วนกระดานบอร์ดเนื้อหาหลัก */}
         <section className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/50">
           <div className="max-w-5xl mx-auto space-y-6">
-            
+           
             {activeTab === 'overview' && (
               <>
                 {/* 1. ส่วนต้อนรับและข้อมูลส่วนตัวตามบทบาท */}
@@ -741,7 +740,7 @@ const MainAppContainer = () => {
                       <span className="text-[10px] bg-red-50 text-[#800000] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">
                         บัญชีผู้ใช้งานปัจจุบัน
                       </span>
-                      
+                     
                       <div className="flex items-center gap-3 mt-4">
                         <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-500"><GraduationCap size={24} /></div>
                         <div>
@@ -750,7 +749,7 @@ const MainAppContainer = () => {
                         </div>
                       </div>
                     </div>
-                    
+                   
                     <div className="border-t border-gray-50 pt-3 mt-4 space-y-1.5 text-xs text-gray-500 font-bold">
                       {userRole === 'student' ? (
                         <>
@@ -774,7 +773,7 @@ const MainAppContainer = () => {
                     <BarChart3 size={20} className="text-[#800000]"/>
                     {userRole === 'student' ? 'สรุปสถานะคำร้องส่วนตัว' : 'ภาพรวมข้อมูลคำร้องงานในระบบทั้งหมด'}
                   </h4>
-                  
+                 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between">
                       <div>
@@ -857,7 +856,7 @@ const MainAppContainer = () => {
           </div>
         </section>
       </main>
-      
+     
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
@@ -882,8 +881,8 @@ const LoginPage = ({ onLogin }) => {
         password: String(password)
       };
       
-      // ใช้ Base URL ยิงเข้า /login โดยตรง
-      const response = await axios.post(`https://coop-backend-02.vercel.app/login`, payload);
+      const endpoint = '/login'; 
+      const response = await axios.post(`${API_BASE_URL}${endpoint}`, payload);
       
       const token = typeof response.data === 'string' ? response.data : response.data.access_token;
       
@@ -907,6 +906,7 @@ const LoginPage = ({ onLogin }) => {
         alert("ไม่สามารถเชื่อมต่อเครือข่ายเข้ากับเซิร์ฟเวอร์หลังบ้านได้");
       }
     } finally {
+      // ซ่อมจุดนี้: ลบ loading(false) ออก เหลือเพียง setLoading(false)
       setLoading(false);
     }
   };
