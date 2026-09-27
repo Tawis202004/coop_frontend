@@ -2206,7 +2206,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
     if (
       activeTab ===
-      "all_students"
+      "MANAGE_USER_ID"
     ) {
       fetchUsers();
     }
@@ -2812,7 +2812,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
   if (
     activeTab ===
-    "all_students"
+    "MANAGE_USER_ID"
   ) {
     return (
       <div className="space-y-6">
@@ -2918,10 +2918,6 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                               <option value="teacher">
                                 teacher
-                              </option>
-
-                              <option value="coordinator">
-                                coordinator
                               </option>
 
                               <option value="admin">
@@ -3986,7 +3982,7 @@ const MainAppContainer = () => {
             ),
           },
           {
-            id: "all_students",
+            id: "MANAGE_USER_ID",
             name: "จัดการผู้ใช้งาน",
             icon: (
               <Users size={20} />
