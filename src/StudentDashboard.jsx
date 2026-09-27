@@ -839,7 +839,7 @@ const MainAppContainer = () => {
               <CoordinatorManagement activeTab={activeTab} />
             )}
 
-            {/* หน้าสลับสำหรับฝั่ง อาจารย์นิเทศก์ (Advisor Views) */}
+            {/* หน้าสลับสำหรับฝั่ง อาจารย์นิเทศก์ (Advisor Views - บูรณาการคอมโพเนนต์ที่ปรับปรุงแล้ว) */}
             {userRole === 'advisor' && (
               <AdvisorManagement activeTab={activeTab} />
             )}
@@ -906,7 +906,6 @@ const LoginPage = ({ onLogin }) => {
         alert("ไม่สามารถเชื่อมต่อเครือข่ายเข้ากับเซิร์ฟเวอร์หลังบ้านได้");
       }
     } finally {
-      loading(false);
       setLoading(false);
     }
   };
