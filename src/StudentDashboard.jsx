@@ -664,7 +664,7 @@ const CompanyManagement = ({
   };
 
   const saveCompany = async () => {
-    if (!companyForm.company_name) {
+    if (!companyForm.company_name.trim()) {
       alert("กรุณากรอกชื่อบริษัท");
       return;
     }
@@ -672,27 +672,49 @@ const CompanyManagement = ({
     try {
       setSavingCompany(true);
 
+      const payload = {
+        company_name: companyForm.company_name.trim(),
+        address: companyForm.address.trim(),
+        phone: companyForm.phone.trim(),
+        industry: companyForm.industry.trim(),
+        allowance: companyForm.allowance.trim(),
+        accommodation: companyForm.accommodation.trim(),
+        shuttle: companyForm.shuttle.trim(),
+        welfare: companyForm.welfare.trim(),
+      };
+
+      console.log("COMPANY PAYLOAD:", payload);
+
       if (editingCompany) {
-        await apiService.updateCompany(
-          editingCompany.id ||
-            editingCompany.company_id,
-          companyForm
-        );
+        const companyId =
+          editingCompany.id || editingCompany.company_id;
+
+        await apiService.updateCompany(companyId, payload);
       } else {
-        await apiService.createCompany(
-          companyForm
-        );
+        // POST https://coop-backend-02.vercel.app/companies
+        const response = await apiService.createCompany(payload);
+        console.log("POST /companies RESPONSE:", response.data);
       }
+
+      const wasEditing = Boolean(editingCompany);
 
       setShowCompanyForm(false);
       setEditingCompany(null);
       setCompanyForm(emptyCompany);
 
+      // GET /companies again so the new company appears immediately
       await fetchCompanies();
 
-      alert("บันทึกข้อมูลบริษัทเรียบร้อยแล้ว");
+      alert(
+        wasEditing
+          ? "แก้ไขข้อมูลบริษัทเรียบร้อยแล้ว"
+          : "เพิ่มบริษัทเรียบร้อยแล้ว"
+      );
     } catch (err) {
-      console.error(err);
+      console.error(
+        "SAVE COMPANY ERROR:",
+        err?.response?.data || err
+      );
 
       alert(
         getApiErrorMessage(
