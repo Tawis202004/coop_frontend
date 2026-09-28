@@ -3208,7 +3208,7 @@ const AdvisorManagement = ({
 
         otherRequests.push(
           apiService
-            .getTeacherSupervisions()
+            .getSupervisions()
             .then((response) => {
               const data =
                 response?.data?.supervisions ||
@@ -3278,7 +3278,7 @@ const AdvisorManagement = ({
         );
 
         const response =
-          await apiService.getTeacherSupervisions();
+          await apiService.getSupervisions();
 
         setSupervisions(
           normalizeList(
