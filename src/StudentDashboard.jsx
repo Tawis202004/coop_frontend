@@ -3030,6 +3030,23 @@ const AdvisorManagement = ({
       email: "",
     });
 
+  // ป้องกัน React error #31: ห้าม render object ตรง ๆ ใน JSX
+  const safeText = (value, fallback = "-") => {
+    if (value === null || value === undefined || value === "") return fallback;
+    if (["string", "number", "boolean"].includes(typeof value)) return String(value);
+    if (Array.isArray(value)) {
+      return value.map((item) => safeText(item, "")).filter(Boolean).join(", ") || fallback;
+    }
+    if (typeof value === "object") {
+      return safeText(
+        value.student_name || value.company_name || value.full_name || value.name ||
+          value.username || value.student_id || value.id,
+        fallback
+      );
+    }
+    return String(value);
+  };
+
   const fetchAdvisorData = async () => {
       try {
         setLoading(true);
@@ -3249,60 +3266,83 @@ const AdvisorManagement = ({
   // CREATE SUPERVISION
   // ----------------------------------------------------------
 
-  const saveSupervision =
-    async (
-      student,
-      note
-    ) => {
-      if (!note.trim()) {
-        alert(
-          "กรุณากรอกผลการนิเทศ"
-        );
+  const findCompanyId = async (student) => {
+    const directId =
+      student?.company_id ||
+      student?.companyId ||
+      (typeof student?.company === "object"
+        ? student.company?.id || student.company?.company_id
+        : null);
+
+    if (directId) return Number(directId);
+
+    const companyName =
+      student?.company_name ||
+      (typeof student?.company === "string"
+        ? student.company
+        : student?.company?.company_name || student?.company?.name);
+
+    if (!companyName) return null;
+
+    try {
+      const response = await apiService.getCompanies();
+      const companies = normalizeList(response?.data, ["companies", "data", "items"]);
+      const matched = companies.find((company) =>
+        String(company?.company_name || company?.name || "").trim().toLowerCase() ===
+        String(companyName).trim().toLowerCase()
+      );
+      return matched ? Number(matched.id || matched.company_id) : null;
+    } catch (error) {
+      console.error("Find company_id error:", error);
+      return null;
+    }
+  };
+
+  const saveSupervision = async (student, note) => {
+    const cleanNote = String(note || "").trim();
+    if (!cleanNote) {
+      alert("กรุณากรอกผลการนิเทศ");
+      return;
+    }
+
+    const studentId = student?.student_id || student?.id;
+    if (!studentId) {
+      alert("ไม่พบรหัสนักศึกษา");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const companyId = await findCompanyId(student);
+      if (!companyId) {
+        alert(`ไม่พบ company_id ของบริษัท ${safeText(student?.company_name || student?.company)}`);
         return;
       }
 
-      try {
-        setSaving(true);
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const payload = {
+        student_id: String(studentId),
+        company_id: Number(companyId),
+        date,
+        type: "onsite",
+        note: cleanNote,
+        status: "completed",
+      };
 
-        await apiService.createSupervision(
-          {
-            student_id:
-              student.student_id ||
-              student.id,
-            note,
-          }
-        );
+      console.log("POST /supervision PAYLOAD:", payload);
+      await apiService.createSupervision(payload);
+      alert("บันทึกผลการนิเทศเรียบร้อยแล้ว");
 
-        alert(
-          "บันทึกผลการนิเทศเรียบร้อยแล้ว"
-        );
-
-        const response =
-          await apiService.getTeacherSupervisions();
-
-        setSupervisions(
-          normalizeList(
-            response.data,
-            [
-              "supervisions",
-              "data",
-              "items",
-            ]
-          )
-        );
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          getApiErrorMessage(
-            error,
-            "ไม่สามารถบันทึกผลการนิเทศได้"
-          )
-        );
-      } finally {
-        setSaving(false);
-      }
-    };
+      const response = await apiService.getTeacherSupervisions();
+      setSupervisions(normalizeList(response?.data, ["supervisions", "data", "items"]));
+    } catch (error) {
+      console.error("Create Supervision Error:", error);
+      alert(getApiErrorMessage(error, "ไม่สามารถบันทึกผลการนิเทศได้"));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ----------------------------------------------------------
   // UPDATE TEACHER PROFILE
@@ -3542,9 +3582,9 @@ const AdvisorManagement = ({
                         <p className="text-xs text-gray-400 font-bold mt-1">
                           บริษัท:{" "}
                           <span className="text-gray-700">
-                            {student.company_name ||
-                              student.company ||
-                              "-"}
+                            {safeText(
+                              student.company_name || student.company
+                            )}
                           </span>
                         </p>
 
@@ -3635,20 +3675,21 @@ const AdvisorManagement = ({
               {supervisions.map((item, index) => {
                 const student = item.student || {};
                 const company = item.company || {};
-                const studentName =
+                const studentName = safeText(
                   item.student_name ||
-                  item.full_name ||
-                  student.student_name ||
-                  student.full_name ||
-                  `${student.first_name || item.first_name || ""} ${student.last_name || item.last_name || ""}`.trim() ||
-                  "-";
-                const studentId = item.student_id || student.student_id || "-";
-                const companyName =
+                    item.full_name ||
+                    student.student_name ||
+                    student.full_name ||
+                    `${student.first_name || item.first_name || ""} ${student.last_name || item.last_name || ""}`.trim()
+                );
+                const studentId = safeText(item.student_id || student.student_id);
+                const companyName = safeText(
                   item.company_name ||
-                  (typeof company === "string" ? company : company.company_name || company.name) ||
-                  "-";
-                const note =
-                  item.note || item.supervision_note || item.description || item.result || "-";
+                    (typeof company === "string" ? company : company.company_name || company.name)
+                );
+                const note = safeText(
+                  item.note || item.supervision_note || item.description || item.result
+                );
                 const rawDate = item.supervision_date || item.date || item.created_at;
                 const parsedDate = rawDate ? new Date(rawDate) : null;
                 const displayDate =
@@ -3755,9 +3796,9 @@ const AdvisorManagement = ({
 
                     <p className="text-xs text-gray-600 font-bold mt-2">
                       บริษัท:{" "}
-                      {student.company_name ||
-                        student.company ||
-                        "-"}
+                      {safeText(
+                        student.company_name || student.company
+                      )}
                     </p>
 
                   </div>
@@ -3801,7 +3842,7 @@ const AdvisorManagement = ({
               "นามสกุล",
             ],
             [
-              "phone",
+              "rank",
               "ตำแหน่ง (rank)",
             ],
             [
@@ -4859,80 +4900,57 @@ const AdminDashboardStats =
 // TEACHER STATS
 // ============================================================
 
-const TeacherDashboardStats =
-  () => {
-    const [data, setData] =
-      useState(null);
+const TeacherDashboardStats = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    const [loading, setLoading] =
-      useState(true);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await apiService.getTeacherDashboard();
+        console.log("GET /teacher/dashboard RESPONSE:", response?.data);
+        setData(response?.data || null);
+      } catch (error) {
+        console.error("Teacher Dashboard Error:", error);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-    useEffect(() => {
-      const load =
-        async () => {
-          try {
-            const response =
-              await apiService.getTeacherDashboard();
+  if (loading) return <LoadingBox />;
 
-            setData(
-              response.data
-            );
-          } catch (error) {
-            console.error(
-              error
-            );
-          } finally {
-            setLoading(false);
-          }
-        };
-
-      load();
-    }, []);
-
-    if (loading) {
-      return (
-        <LoadingBox />
-      );
+  const toCount = (preferred, fallback) => {
+    if (preferred !== undefined && preferred !== null) {
+      return Number(preferred) || 0;
     }
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        <StatCard
-          title="นักศึกษาในความดูแล"
-          value={
-            data?.students_count ??
-            data?.total_students ??
-            data?.students ??
-            0
-          }
-          color="emerald"
-        />
-
-        <StatCard
-          title="Supervision"
-          value={
-            data?.supervisions_count ??
-            data?.total_supervisions ??
-            data?.supervisions ??
-            0
-          }
-          color="amber"
-        />
-
-        <StatCard
-          title="งานที่ต้องตรวจ"
-          value={
-            data?.pending_count ??
-            data?.pending ??
-            0
-          }
-          color="red"
-        />
-
-      </div>
-    );
+    if (Array.isArray(fallback)) return fallback.length;
+    if (typeof fallback === "number" || typeof fallback === "string") {
+      return Number(fallback) || 0;
+    }
+    return 0;
   };
+
+  const studentCount = toCount(
+    data?.students_count ?? data?.total_students,
+    data?.students
+  );
+  const supervisionCount = toCount(
+    data?.supervisions_count ?? data?.total_supervisions,
+    data?.supervisions
+  );
+  const pendingCount = toCount(data?.pending_count, data?.pending);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <StatCard title="นักศึกษาในความดูแล" value={studentCount} color="emerald" />
+      <StatCard title="Supervision" value={supervisionCount} color="amber" />
+      <StatCard title="งานที่ต้องตรวจ" value={pendingCount} color="red" />
+    </div>
+  );
+};
 
 // ============================================================
 // STAT CARD
