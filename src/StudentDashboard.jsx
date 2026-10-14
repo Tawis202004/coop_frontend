@@ -1484,7 +1484,6 @@ const StudentApplication = () => {
   const [requestSearch, setRequestSearch] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [position, setPosition] = useState("");
-  const [filter, setFilter] = useState("all");
   const [confirm, setConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -1504,7 +1503,6 @@ const StudentApplication = () => {
   const positions = selected ? (Array.isArray(selected.positions) ? selected.positions.map(p => typeof p === "string" ? p : p.position_name || p.name).filter(Boolean) : []) : [];
   const statusMeta = (status) => ({pending:["รอพิจารณา","bg-amber-100 text-amber-800"],approved:["อนุมัติแล้ว","bg-green-100 text-green-800"],rejected:["ไม่อนุมัติ","bg-red-100 text-red-800"],cancelled:["ยกเลิกแล้ว","bg-gray-200 text-gray-700"]}[String(status).toLowerCase()] || [status,"bg-gray-100 text-gray-700"]);
   const formatDate = (date) => date ? new Intl.DateTimeFormat("th-TH", {dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Bangkok"}).format(new Date(date)) : "ไม่มีข้อมูลวันที่ (คำร้องเก่า)";
-  const sorted = [...applications].filter(a => filter === "all" || a.status === filter).sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0));
   const apply = async () => {
     setConfirm(false);
     try { setLoading(true); await apiService.applyCompany({company_id:Number(companyId),position}); setCompanyId("");setPosition("");setNotice("ส่งคำร้องสำเร็จ");await loadData(); }
@@ -1527,6 +1525,15 @@ const StudentApplication = () => {
       {positions.length ? <select className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)}><option value="">-- เลือกตำแหน่ง --</option>{positions.map(p=><option key={p} value={p}>{p}</option>)}</select> : <input className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)} placeholder={companyId?"กรอกตำแหน่ง (บริษัทนี้ยังไม่มีรายการตำแหน่งใน API)":"กรุณาเลือกบริษัทก่อน"}/>}
       <button className="px-6 py-3 bg-[#800000] text-white rounded-xl font-bold disabled:opacity-40" disabled={active||!companyId||!position.trim()||loading} onClick={()=>setConfirm(true)}>ยื่นคำร้อง</button>
     </div>
+    {applications.filter(a => ["pending", "approved"].includes(String(a.status).toLowerCase())).slice(0, 1).map(a => (
+      <div key={a.application_id || a.id} className="bg-white p-6 rounded-3xl border space-y-3">
+        <h3 className="font-black">คำร้องปัจจุบัน</h3>
+        <div className="flex justify-between gap-2"><strong>{a.company_name || "-"}</strong><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta(a.status)[1]}`}>{statusMeta(a.status)[0]}</span></div>
+        <p className="text-sm">ตำแหน่ง: {a.position || "ไม่ระบุ"}</p>
+        <p className="text-xs text-gray-500">ยื่นเมื่อ {formatDate(a.created_at)}</p>
+        {String(a.status).toLowerCase() === "pending" && <button className="text-red-700 text-sm underline" onClick={() => cancel(a.application_id || a.id)}>ยกเลิกคำร้อง</button>}
+      </div>
+    ))}
     {confirm&&<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true"><div className="bg-white max-w-md w-full rounded-3xl p-7 shadow-2xl"><h3 className="text-xl font-black text-[#800000] mb-3">ยืนยันการยื่นคำร้อง</h3><p>บริษัท: <strong>{selected?.company_name||selected?.name}</strong></p><p>ตำแหน่ง: <strong>{position}</strong></p><p className="text-sm text-gray-500 mt-3">เมื่อยื่นแล้วจะไม่สามารถยื่นคำร้องอื่นได้จนกว่าคำร้องนี้จะถูกปฏิเสธหรือยกเลิก</p><div className="flex justify-end gap-3 mt-6"><button className="px-4 py-2 rounded-xl bg-gray-100" onClick={()=>setConfirm(false)}>กลับไปแก้ไข</button><button className="px-4 py-2 rounded-xl bg-[#800000] text-white" onClick={apply}>ยืนยันส่งคำร้อง</button></div></div></div>}
   </div>;
 };
@@ -2391,7 +2398,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 ) : (
 
-                  applications.filter(item => !["rejected", "cancelled", "canceled"].includes(String(getApplicationStatus(item)).toLowerCase()) && (requestFilter === "all" || getApplicationStatus(item) === requestFilter) && [getStudentName(item),getStudentId(item),getCompanyName(item)].join(" ").toLowerCase().includes(requestSearch.toLowerCase())).map(
+                  applications.filter(item => (requestFilter === "all" || getApplicationStatus(item) === requestFilter) && [getStudentName(item),getStudentId(item),getCompanyName(item)].join(" ").toLowerCase().includes(requestSearch.toLowerCase())).map(
                     (
                       application,
                       index
@@ -3890,7 +3897,11 @@ const MainAppContainer = () => {
           {
             id: "manage_requests",
             name: "อนุมัติคำร้อง",
-            icon: (<ClipboardCheck size={20} />),
+            icon: (
+              <ClipboardCheck
+                size={20}
+              />
+            ),
           },
           {
             id: "MANAGE_USER_ID",
