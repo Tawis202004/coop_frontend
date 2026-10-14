@@ -161,6 +161,8 @@ const apiService = {
   getApplications: () =>
     api.get("/applications"),
 
+  cancelApplication: (applicationId) => api.put(`/applications/${applicationId}/cancel`),
+
   approveApplication: (applicationId) =>
     api.put(
       `/applications/${applicationId}/approve`
@@ -1308,137 +1310,16 @@ const CompanyManagement = ({
 // STUDENT PROFILE
 // ============================================================
 
-const StudentProfile = ({
-  profileData,
-  onSaved,
-}) => {
-  const [form, setForm] = useState({
-    first_name:
-      profileData?.first_name || "",
-    last_name:
-      profileData?.last_name || "",
-    faculty:
-      profileData?.faculty || "",
-    major:
-      profileData?.major || "",
-    semester:
-      profileData?.semester || "",
-    phone:
-      profileData?.phone || "",
-  });
-
-  const [saving, setSaving] =
-    useState(false);
-
-  useEffect(() => {
-    setForm({
-      first_name:
-        profileData?.first_name || "",
-      last_name:
-        profileData?.last_name || "",
-      faculty:
-        profileData?.faculty || "",
-      major:
-        profileData?.major || "",
-      semester:
-        profileData?.semester || "",
-      phone:
-        profileData?.phone || "",
-    });
-  }, [profileData]);
-
-  const saveProfile = async () => {
-    try {
-      setSaving(true);
-
-      if (profileData) {
-        await apiService.updateStudentProfile(
-          form
-        );
-      } else {
-        await apiService.createStudentProfile(
-          form
-        );
-      }
-
-      alert(
-        "บันทึก Profile เรียบร้อยแล้ว"
-      );
-
-      if (onSaved) {
-        await onSaved();
-      }
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        getApiErrorMessage(
-          error,
-          "ไม่สามารถบันทึก Profile ได้"
-        )
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100">
-
-      <h3 className="text-[#800000] font-black text-lg mb-6 flex items-center gap-2">
-        <User size={23} />
-        Profile ของฉัน
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {[
-          ["first_name", "ชื่อ"],
-          ["last_name", "นามสกุล"],
-          ["faculty", "คณะ"],
-          ["major", "สาขา"],
-          ["semester", "ภาคเรียน"],
-          ["phone", "เบอร์โทรศัพท์"],
-        ].map(
-          ([field, label]) => (
-            <div key={field}>
-
-              <label className="text-xs font-black text-gray-500">
-                {label}
-              </label>
-
-              <input
-                value={form[field]}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    [field]:
-                      e.target.value,
-                  })
-                }
-                className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-[#800000]"
-              />
-
-            </div>
-          )
-        )}
-
-      </div>
-
-      <button
-        onClick={saveProfile}
-        disabled={saving}
-        className="mt-6 px-6 py-3 bg-[#800000] text-white rounded-xl font-black text-xs disabled:opacity-50 flex items-center gap-2"
-      >
-        <Save size={15} />
-
-        {saving
-          ? "กำลังบันทึก..."
-          : "บันทึก Profile"}
-      </button>
-
-    </div>
-  );
+const StudentProfile = ({profileData,onSaved}) => {
+  const fields = [["first_name","ชื่อ"],["last_name","นามสกุล"],["phone","เบอร์โทรศัพท์"],["email","อีเมล"],["address","ที่อยู่"],["guardian_name","ชื่อผู้ปกครอง"],["guardian_phone","เบอร์ผู้ปกครอง"]];
+  const [form,setForm] = useState({});const [saving,setSaving]=useState(false);const [message,setMessage]=useState("");
+  useEffect(()=>{setForm(Object.fromEntries(fields.map(([k])=>[k,profileData?.[k]||""])));},[profileData]);
+  const save = async()=>{try{setSaving(true);setMessage("");await apiService.updateStudentProfile(form);setMessage("บันทึกข้อมูลสำเร็จ");await onSaved?.();}catch(e){setMessage(getApiErrorMessage(e,"บันทึกไม่สำเร็จ"));}finally{setSaving(false);}};
+  return <div className="bg-white p-6 rounded-3xl border space-y-4"><h3 className="text-[#800000] font-black text-lg">โปรไฟล์ของฉัน</h3><p className="text-sm text-gray-500">ข้อมูลคำนำหน้า สำนักวิชา สาขา และภาคเรียนจัดการโดยเจ้าหน้าที่</p>
+    <div className="grid md:grid-cols-2 gap-4"><div><label className="text-sm font-bold">คำนำหน้า</label><select disabled className="w-full p-3 rounded-xl border bg-gray-100" value={profileData?.title||""}><option value="">ยังไม่ระบุ</option><option value="นาย">นาย</option><option value="นาง">นาง</option></select></div>
+    {[['faculty','สำนักวิชา'],['major','สาขาวิชา'],['semester','ภาคเรียน']].map(([k,l])=><div key={k}><label className="text-sm font-bold">{l}</label><input disabled className="w-full p-3 rounded-xl border bg-gray-100" value={profileData?.[k]||"ยังไม่ระบุ"} readOnly/></div>)}
+    {fields.map(([k,l])=><div key={k}><label className="text-sm font-bold">{l}</label><input className="w-full p-3 rounded-xl border" value={form[k]||""} onChange={e=>setForm({...form,[k]:e.target.value})}/></div>)}</div>
+    {message&&<p role="status">{message}</p>}<button disabled={saving} onClick={save} className="px-6 py-3 bg-[#800000] text-white rounded-xl disabled:opacity-50">{saving?"กำลังบันทึก...":"บันทึกโปรไฟล์"}</button></div>;
 };
 
 // ============================================================
@@ -1597,233 +1478,58 @@ const MyTeacher = () => {
 // ============================================================
 
 const StudentApplication = () => {
-  const [companies, setCompanies] =
-    useState([]);
-
-  const [applications, setApplications] =
-    useState([]);
-
-  const [companyId, setCompanyId] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [loadingData, setLoadingData] =
-    useState(true);
-
+  const [companies, setCompanies] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [companyId, setCompanyId] = useState("");
+  const [position, setPosition] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [confirm, setConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [notice, setNotice] = useState("");
   const loadData = async () => {
     try {
       setLoadingData(true);
-
-      const [
-        companiesResponse,
-        applicationsResponse,
-      ] = await Promise.all([
-        apiService.getCompanies(),
-        apiService.getApplications(),
-      ]);
-
-      setCompanies(
-        normalizeList(
-          companiesResponse.data,
-          [
-            "companies",
-            "data",
-            "items",
-          ]
-        )
-      );
-
-      setApplications(
-        normalizeList(
-          applicationsResponse.data,
-          [
-            "applications",
-            "data",
-            "items",
-          ]
-        )
-      );
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        getApiErrorMessage(
-          error,
-          "ไม่สามารถโหลดข้อมูลคำร้องได้"
-        )
-      );
-    } finally {
-      setLoadingData(false);
-    }
+      const [c, a] = await Promise.all([apiService.getCompanies(), apiService.getApplications()]);
+      setCompanies(normalizeList(c.data, ["companies", "data", "items"]));
+      setApplications(normalizeList(a.data, ["applications", "data", "items"]));
+    } catch (e) { setNotice(getApiErrorMessage(e, "โหลดข้อมูลไม่สำเร็จ")); }
+    finally { setLoadingData(false); }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  useEffect(() => { loadData(); }, []);
+  const active = applications.some(a => ["pending", "approved"].includes(String(a.status).toLowerCase()));
+  const selected = companies.find(c => String(c.id || c.company_id) === String(companyId));
+  const positions = selected ? (Array.isArray(selected.positions) ? selected.positions.map(p => typeof p === "string" ? p : p.position_name || p.name).filter(Boolean) : []) : [];
+  const statusMeta = (status) => ({pending:["รอพิจารณา","bg-amber-100 text-amber-800"],approved:["อนุมัติแล้ว","bg-green-100 text-green-800"],rejected:["ไม่อนุมัติ","bg-red-100 text-red-800"],cancelled:["ยกเลิกแล้ว","bg-gray-200 text-gray-700"]}[String(status).toLowerCase()] || [status,"bg-gray-100 text-gray-700"]);
+  const formatDate = (date) => date ? new Intl.DateTimeFormat("th-TH", {dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Bangkok"}).format(new Date(date)) : "ไม่มีข้อมูลวันที่ (คำร้องเก่า)";
+  const sorted = [...applications].filter(a => filter === "all" || a.status === filter).sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0));
   const apply = async () => {
-    if (!companyId) {
-      alert(
-        "กรุณาเลือกสถานประกอบการ"
-      );
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      await apiService.applyCompany({
-        company_id: companyId,
-      });
-
-      alert(
-        "ส่งคำร้องสมัครบริษัทเรียบร้อยแล้ว"
-      );
-
-      setCompanyId("");
-
-      await loadData();
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        getApiErrorMessage(
-          error,
-          "ไม่สามารถสมัครบริษัทได้"
-        )
-      );
-    } finally {
-      setLoading(false);
-    }
+    setConfirm(false);
+    try { setLoading(true); await apiService.applyCompany({company_id:Number(companyId),position}); setCompanyId("");setPosition("");setNotice("ส่งคำร้องสำเร็จ");await loadData(); }
+    catch(e){setNotice(getApiErrorMessage(e,"ส่งคำร้องไม่สำเร็จ"));}
+    finally{setLoading(false);}
   };
-
-  return (
-    <div className="space-y-6">
-
-      {/* APPLY */}
-
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100">
-
-        <h3 className="text-[#800000] font-black text-lg mb-6 flex items-center gap-2">
-          <FileSearch size={24} />
-          สมัครสถานประกอบการ
-        </h3>
-
-        {loadingData ? (
-          <LoadingBox />
-        ) : (
-          <>
-            <select
-              value={companyId}
-              onChange={(e) =>
-                setCompanyId(
-                  e.target.value
-                )
-              }
-              className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none focus:border-[#800000]"
-            >
-              <option value="">
-                -- เลือกสถานประกอบการ --
-              </option>
-
-              {companies.map(
-                (company) => (
-                  <option
-                    key={
-                      company.id ||
-                      company.company_id
-                    }
-                    value={
-                      company.id ||
-                      company.company_id
-                    }
-                  >
-                    {company.company_name ||
-                      company.name}
-                  </option>
-                )
-              )}
-            </select>
-
-            <button
-              onClick={apply}
-              disabled={loading}
-              className="mt-4 px-6 py-3 bg-[#800000] text-white rounded-xl font-black disabled:opacity-50"
-            >
-              {loading
-                ? "กำลังส่งคำร้อง..."
-                : "ยื่นคำร้อง"}
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* APPLICATIONS */}
-
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100">
-
-        <h3 className="text-gray-800 font-black text-lg mb-6">
-          คำร้องของฉัน
-        </h3>
-
-        {loadingData ? (
-          <LoadingBox />
-        ) : applications.length ===
-          0 ? (
-          <div className="text-center py-8 text-gray-400 font-bold">
-            ยังไม่มีคำร้อง
-          </div>
-        ) : (
-          <div className="space-y-3">
-
-            {applications.map(
-              (application) => (
-                <div
-                  key={
-                    application.id ||
-                    application.application_id
-                  }
-                  className="p-5 bg-gray-50 rounded-2xl border border-gray-100"
-                >
-
-                  <div className="flex items-center justify-between gap-4">
-
-                    <div>
-
-                      <p className="font-black text-gray-800">
-                        {application.company_name ||
-                          application.company ||
-                          "-"}
-                      </p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        รหัสคำร้อง:{" "}
-                        {application.id ||
-                          application.application_id ||
-                          "-"}
-                      </p>
-
-                    </div>
-
-                    <span className="px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-xs font-black">
-                      {application.status ||
-                        "รอตรวจสอบ"}
-                    </span>
-
-                  </div>
-
-                </div>
-              )
-            )}
-
-          </div>
-        )}
-
-      </div>
+  const cancel = async id => {
+    if (!window.confirm("ยืนยันยกเลิกคำร้องนี้?")) return;
+    try { await apiService.cancelApplication(id); setNotice("ยกเลิกคำร้องแล้ว");await loadData(); }
+    catch(e){setNotice(getApiErrorMessage(e,"ยกเลิกไม่สำเร็จ"));}
+  };
+  return <div className="space-y-6">
+    <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 space-y-4">
+      <h3 className="text-[#800000] font-black text-lg">ยื่นคำร้องเลือกสถานประกอบการ</h3>
+      {notice && <div role="status" className="rounded-xl bg-blue-50 p-3 text-blue-800">{notice}<button className="ml-4" onClick={()=>setNotice("")}>✕</button></div>}
+      {active && <p className="p-3 bg-amber-50 rounded-xl text-amber-800">มีคำร้องรอพิจารณาหรืออนุมัติแล้ว สามารถยื่นใหม่ได้เมื่อคำร้องถูกปฏิเสธหรือยกเลิกเท่านั้น</p>}
+      <label className="block font-bold">สถานประกอบการ</label>
+      <select className="w-full p-3 rounded-xl border" value={companyId} disabled={active || loadingData} onChange={e=>{setCompanyId(e.target.value);setPosition("");}}><option value="">-- เลือกบริษัท --</option>{companies.map(c=><option key={c.id||c.company_id} value={c.id||c.company_id}>{c.company_name||c.name}</option>)}</select>
+      <label className="block font-bold">ตำแหน่งงาน</label>
+      {positions.length ? <select className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)}><option value="">-- เลือกตำแหน่ง --</option>{positions.map(p=><option key={p} value={p}>{p}</option>)}</select> : <input className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)} placeholder={companyId?"กรอกตำแหน่ง (บริษัทนี้ยังไม่มีรายการตำแหน่งใน API)":"กรุณาเลือกบริษัทก่อน"}/>}
+      <button className="px-6 py-3 bg-[#800000] text-white rounded-xl font-bold disabled:opacity-40" disabled={active||!companyId||!position.trim()||loading} onClick={()=>setConfirm(true)}>ยื่นคำร้อง</button>
     </div>
-  );
+    <div className="bg-white p-6 rounded-3xl border space-y-4"><div className="flex justify-between items-center gap-2"><h3 className="font-black">ประวัติคำร้อง (ล่าสุดก่อน)</h3><select aria-label="กรองสถานะ" className="p-2 border rounded-xl" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">ทั้งหมด</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติ</option><option value="rejected">ปฏิเสธ</option><option value="cancelled">ยกเลิก</option></select></div>
+      {loadingData?<LoadingBox/>:sorted.length===0?<p>ไม่มีคำร้องในรายการนี้</p>:sorted.map(a=><div key={a.application_id||a.id} className="p-4 rounded-2xl border bg-gray-50"><div className="flex justify-between gap-2"><strong>{a.company_name||"-"}</strong><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta(a.status)[1]}`}>{statusMeta(a.status)[0]}</span></div><p className="text-sm">ตำแหน่ง: {a.position||"ไม่ระบุ"}</p><p className="text-xs text-gray-500">คำร้อง #{a.application_id||a.id} · ยื่นเมื่อ {formatDate(a.created_at)}</p>{a.status==="pending"&&<button className="mt-2 text-red-700 text-sm underline" onClick={()=>cancel(a.application_id||a.id)}>ยกเลิกคำร้อง</button>}</div>)}
+    </div>
+    {confirm&&<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true"><div className="bg-white max-w-md w-full rounded-3xl p-7 shadow-2xl"><h3 className="text-xl font-black text-[#800000] mb-3">ยืนยันการยื่นคำร้อง</h3><p>บริษัท: <strong>{selected?.company_name||selected?.name}</strong></p><p>ตำแหน่ง: <strong>{position}</strong></p><p className="text-sm text-gray-500 mt-3">เมื่อยื่นแล้วจะไม่สามารถยื่นคำร้องอื่นได้จนกว่าคำร้องนี้จะถูกปฏิเสธหรือยกเลิก</p><div className="flex justify-end gap-3 mt-6"><button className="px-4 py-2 rounded-xl bg-gray-100" onClick={()=>setConfirm(false)}>กลับไปแก้ไข</button><button className="px-4 py-2 rounded-xl bg-[#800000] text-white" onClick={apply}>ยืนยันส่งคำร้อง</button></div></div></div>}
+  </div>;
 };
 
 // ============================================================
