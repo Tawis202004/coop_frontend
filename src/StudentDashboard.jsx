@@ -1923,6 +1923,17 @@ const CoordinatorManagement = ({ activeTab }) => {
     }
   };
 
+  const archiveOldApplications = async () => {
+    if (!window.confirm("ซ่อนคำร้องทั้งหมดที่มีอยู่จากหน้าเว็บทุกบัญชี? ข้อมูลจะยังอยู่ในฐานข้อมูล และคำร้องใหม่จะยังแสดงตามปกติ")) return;
+    try {
+      const response = await api.post("/applications/archive-all");
+      await fetchApplications();
+      window.alert(`ซ่อนคำร้องแล้ว ${response.data?.archived_count ?? 0} รายการ (ไม่ได้ลบข้อมูล)`);
+    } catch (error) {
+      window.alert(getApiErrorMessage(error, "ไม่สามารถซ่อนคำร้องได้"));
+    }
+  };
+
   // -------------------------------------------------------
   // โหลดข้อมูลเมื่อเข้าหน้าจัดการคำร้อง
   // -------------------------------------------------------
@@ -2276,6 +2287,8 @@ const CoordinatorManagement = ({ activeTab }) => {
               </p>
             </div>
 
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={archiveOldApplications} disabled={loadingApplications} className="px-4 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-xs font-black text-amber-800">ล้างคำร้องเก่าจากหน้าเว็บ</button>
             <button
               onClick={
                 fetchApplications
@@ -2289,6 +2302,7 @@ const CoordinatorManagement = ({ activeTab }) => {
                 ? "กำลังโหลด..."
                 : "รีเฟรชข้อมูล"}
             </button>
+            </div>
 
           </div>
 
