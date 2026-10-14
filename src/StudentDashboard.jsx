@@ -1480,8 +1480,6 @@ const MyTeacher = () => {
 const StudentApplication = () => {
   const [companies, setCompanies] = useState([]);
   const [applications, setApplications] = useState([]);
-  const [requestFilter, setRequestFilter] = useState("all");
-  const [requestSearch, setRequestSearch] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [position, setPosition] = useState("");
   const [filter, setFilter] = useState("all");
@@ -1526,6 +1524,9 @@ const StudentApplication = () => {
       <label className="block font-bold">ตำแหน่งงาน</label>
       {positions.length ? <select className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)}><option value="">-- เลือกตำแหน่ง --</option>{positions.map(p=><option key={p} value={p}>{p}</option>)}</select> : <input className="w-full p-3 rounded-xl border" value={position} disabled={!companyId||active} onChange={e=>setPosition(e.target.value)} placeholder={companyId?"กรอกตำแหน่ง (บริษัทนี้ยังไม่มีรายการตำแหน่งใน API)":"กรุณาเลือกบริษัทก่อน"}/>}
       <button className="px-6 py-3 bg-[#800000] text-white rounded-xl font-bold disabled:opacity-40" disabled={active||!companyId||!position.trim()||loading} onClick={()=>setConfirm(true)}>ยื่นคำร้อง</button>
+    </div>
+    <div className="bg-white p-6 rounded-3xl border space-y-4"><div className="flex justify-between items-center gap-2"><h3 className="font-black">ประวัติคำร้อง (ล่าสุดก่อน)</h3><select aria-label="กรองสถานะ" className="p-2 border rounded-xl" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">ทั้งหมด</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติ</option><option value="rejected">ปฏิเสธ</option><option value="cancelled">ยกเลิก</option></select></div>
+      {loadingData?<LoadingBox/>:sorted.length===0?<p>ไม่มีคำร้องในรายการนี้</p>:sorted.map(a=><div key={a.application_id||a.id} className="p-4 rounded-2xl border bg-gray-50"><div className="flex justify-between gap-2"><strong>{a.company_name||"-"}</strong><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta(a.status)[1]}`}>{statusMeta(a.status)[0]}</span></div><p className="text-sm">ตำแหน่ง: {a.position||"ไม่ระบุ"}</p><p className="text-xs text-gray-500">คำร้อง #{a.application_id||a.id} · ยื่นเมื่อ {formatDate(a.created_at)}</p>{a.status==="pending"&&<button className="mt-2 text-red-700 text-sm underline" onClick={()=>cancel(a.application_id||a.id)}>ยกเลิกคำร้อง</button>}</div>)}
     </div>
     {confirm&&<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true"><div className="bg-white max-w-md w-full rounded-3xl p-7 shadow-2xl"><h3 className="text-xl font-black text-[#800000] mb-3">ยืนยันการยื่นคำร้อง</h3><p>บริษัท: <strong>{selected?.company_name||selected?.name}</strong></p><p>ตำแหน่ง: <strong>{position}</strong></p><p className="text-sm text-gray-500 mt-3">เมื่อยื่นแล้วจะไม่สามารถยื่นคำร้องอื่นได้จนกว่าคำร้องนี้จะถูกปฏิเสธหรือยกเลิก</p><div className="flex justify-end gap-3 mt-6"><button className="px-4 py-2 rounded-xl bg-gray-100" onClick={()=>setConfirm(false)}>กลับไปแก้ไข</button><button className="px-4 py-2 rounded-xl bg-[#800000] text-white" onClick={apply}>ยืนยันส่งคำร้อง</button></div></div></div>}
   </div>;
@@ -1831,7 +1832,7 @@ const CoordinatorManagement = ({ activeTab }) => {
           data = [response.data];
         }
 
-        setApplications([...data].sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0)));
+        setApplications(data);
       } catch (error) {
         console.error(
           "Fetch Applications Error:",
@@ -1987,11 +1988,19 @@ const CoordinatorManagement = ({ activeTab }) => {
         return;
       }
 
-      const reason = window.prompt("กรุณาระบุเหตุผลที่ปฏิเสธคำร้อง (จำเป็น)");
-      if (reason === null) return;
-      if (!reason.trim()) { alert("กรุณากรอกเหตุผล"); return; }
+      const confirmReject =
+        window.confirm(
+          "คุณต้องการปฏิเสธคำร้องนี้ใช่หรือไม่?"
+        );
+
+      if (!confirmReject) {
+        return;
+      }
+
       try {
-        await api.put(`/applications/${applicationId}/reject`, {reason: reason.trim()});
+        await api.put(
+          `/applications/${applicationId}/reject`
+        );
 
         alert(
           "ปฏิเสธคำร้องเรียบร้อยแล้ว"
@@ -2289,12 +2298,6 @@ const CoordinatorManagement = ({ activeTab }) => {
 
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-4">
-            <input aria-label="ค้นหาคำร้อง" value={requestSearch} onChange={e=>setRequestSearch(e.target.value)} placeholder="ค้นหาชื่อนักศึกษา / บริษัท / รหัส" className="border rounded-xl p-2 flex-1 min-w-48" />
-            <select aria-label="กรองสถานะ" value={requestFilter} onChange={e=>setRequestFilter(e.target.value)} className="border rounded-xl p-2">
-              <option value="all">ทุกสถานะ</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="cancelled">ยกเลิก</option>
-            </select>
-          </div>
           {/* ERROR */}
 
           {error && (
@@ -2329,9 +2332,6 @@ const CoordinatorManagement = ({ activeTab }) => {
                     บริษัท
                   </th>
 
-                  <th className="pb-3 pr-4">ตำแหน่งฝึกงาน</th>
-                  <th className="pb-3 pr-4">วันที่และเวลาที่ยื่น</th>
-                  <th className="pb-3 pr-4">เหตุผลปฏิเสธ</th>
                   {/* สถานะ */}
 
                   <th className="pb-3 pr-4 text-center">
@@ -2391,7 +2391,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 ) : (
 
-                  applications.filter(item => !["rejected", "cancelled", "canceled"].includes(String(getApplicationStatus(item)).toLowerCase()) && (requestFilter === "all" || getApplicationStatus(item) === requestFilter) && [getStudentName(item),getStudentId(item),getCompanyName(item)].join(" ").toLowerCase().includes(requestSearch.toLowerCase())).map(
+                  applications.map(
                     (
                       application,
                       index
@@ -2461,9 +2461,6 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                           </td>
 
-                          <td className="py-4 pr-4">{application.position || "-"}</td>
-                          <td className="py-4 pr-4 whitespace-nowrap">{application.created_at ? new Date(application.created_at).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"}) : "-"}</td>
-                          <td className="py-4 pr-4">{application.rejection_reason || "-"}</td>
                           {/* STATUS */}
 
                           <td className="py-4 pr-4 text-center">
@@ -3050,18 +3047,13 @@ const AdvisorManagement = ({
         return;
       }
 
-      const date = document.getElementById(`visit-date-${studentId}`)?.value;
-      const type = document.getElementById(`visit-type-${studentId}`)?.value;
-      const position = document.getElementById(`visit-position-${studentId}`)?.value?.trim();
-      const project = document.getElementById(`visit-project-${studentId}`)?.value?.trim();
-      if (!date || !position || !project) { alert("กรุณากรอกวันที่ ตำแหน่ง และโปรเจกต์"); return; }
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
         student_id: String(studentId),
         company_id: Number(companyId),
         date,
-        type,
-        position,
-        project,
+        type: "onsite",
         note: cleanNote,
         status: "completed",
       };
@@ -3328,12 +3320,6 @@ const AdvisorManagement = ({
 
                       <div className="space-y-2">
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <label className="text-xs font-bold">วันที่นิเทศ<input id={`visit-date-${studentId}`} type="date" required className="block w-full border rounded-xl p-3 mt-1" /></label>
-                          <label className="text-xs font-bold">รูปแบบการนิเทศ<select id={`visit-type-${studentId}`} className="block w-full border rounded-xl p-3 mt-1"><option value="onsite">Onsite</option><option value="online">Online</option></select></label>
-                          <label className="text-xs font-bold">ตำแหน่งฝึกงาน<input id={`visit-position-${studentId}`} className="block w-full border rounded-xl p-3 mt-1" placeholder="ตำแหน่ง" /></label>
-                          <label className="text-xs font-bold">โปรเจกต์นักศึกษา<input id={`visit-project-${studentId}`} className="block w-full border rounded-xl p-3 mt-1" placeholder="ชื่อโปรเจกต์" /></label>
-                        </div>
                         <label className="text-xs font-black text-gray-500">
                           ผลการตรวจนิเทศและข้อเสนอแนะ
                         </label>
@@ -3890,7 +3876,11 @@ const MainAppContainer = () => {
           {
             id: "manage_requests",
             name: "อนุมัติคำร้อง",
-            icon: (<ClipboardCheck size={20} />),
+            icon: (
+              <ClipboardCheck
+                size={20}
+              />
+            ),
           },
           {
             id: "MANAGE_USER_ID",
