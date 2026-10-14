@@ -1502,7 +1502,7 @@ const StudentApplication = () => {
   const positions = selected ? (Array.isArray(selected.positions) ? selected.positions.map(p => typeof p === "string" ? p : p.position_name || p.name).filter(Boolean) : []) : [];
   const statusMeta = (status) => ({pending:["รอพิจารณา","bg-amber-100 text-amber-800"],approved:["อนุมัติแล้ว","bg-green-100 text-green-800"],rejected:["ไม่อนุมัติ","bg-red-100 text-red-800"],cancelled:["ยกเลิกแล้ว","bg-gray-200 text-gray-700"]}[String(status).toLowerCase()] || [status,"bg-gray-100 text-gray-700"]);
   const formatDate = (date) => date ? new Intl.DateTimeFormat("th-TH", {dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Bangkok"}).format(new Date(date)) : "ไม่มีข้อมูลวันที่ (คำร้องเก่า)";
-  const sorted = [...applications].filter(a => filter === "all" || a.status === filter).sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0));
+  const sorted = [...applications].filter(a => ["pending", "approved"].includes(String(a.status).toLowerCase())).filter(a => filter === "all" || a.status === filter).sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0));
   const apply = async () => {
     setConfirm(false);
     try { setLoading(true); await apiService.applyCompany({company_id:Number(companyId),position}); setCompanyId("");setPosition("");setNotice("ส่งคำร้องสำเร็จ");await loadData(); }
