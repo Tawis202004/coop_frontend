@@ -3055,7 +3055,11 @@ const AdvisorManagement = ({
     }
   };
 
-  const saveSupervision = async (student, note) => {
+  const saveSupervision = async (student, note, details) => {
+    if (!details.date || !details.position.trim() || !details.project.trim()) {
+      alert("กรุณากรอกวันที่นิเทศ ตำแหน่ง และโปรเจกต์ของนักศึกษา");
+      return;
+    }
     const cleanNote = String(note || "").trim();
     if (!cleanNote) {
       alert("กรุณากรอกผลการนิเทศ");
@@ -3076,13 +3080,13 @@ const AdvisorManagement = ({
         return;
       }
 
-      const now = new Date();
-      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
         student_id: String(studentId),
         company_id: Number(companyId),
-        date,
-        type: "onsite",
+        date: details.date,
+        type: details.type,
+        position: details.position.trim(),
+        project: details.project.trim(),
         note: cleanNote,
         status: "completed",
       };
@@ -3347,6 +3351,23 @@ const AdvisorManagement = ({
 
                       </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        <label className="text-xs font-black text-gray-500">วันที่ไปนิเทศ
+                          <input id={`supervision-date-${studentId}`} type="date" required className="mt-2 w-full p-3 bg-white border border-gray-200 rounded-xl" />
+                        </label>
+                        <label className="text-xs font-black text-gray-500">รูปแบบการนิเทศ
+                          <select id={`supervision-type-${studentId}`} defaultValue="onsite" className="mt-2 w-full p-3 bg-white border border-gray-200 rounded-xl">
+                            <option value="online">Online</option>
+                            <option value="onsite">Onsite</option>
+                          </select>
+                        </label>
+                        <label className="text-xs font-black text-gray-500">ตำแหน่งฝึกงาน
+                          <input id={`supervision-position-${studentId}`} type="text" defaultValue={student.position || ""} placeholder="ระบุตำแหน่ง" className="mt-2 w-full p-3 bg-white border border-gray-200 rounded-xl" />
+                        </label>
+                        <label className="text-xs font-black text-gray-500">โปรเจกต์ที่นักศึกษาทำ
+                          <input id={`supervision-project-${studentId}`} type="text" placeholder="ชื่อโปรเจกต์" className="mt-2 w-full p-3 bg-white border border-gray-200 rounded-xl" />
+                        </label>
+                      </div>
                       <div className="space-y-2">
 
                         <label className="text-xs font-black text-gray-500">
@@ -3376,8 +3397,13 @@ const AdvisorManagement = ({
 
                               saveSupervision(
                                 student,
-                                element?.value ||
-                                  ""
+                                element?.value || "",
+                                {
+                                  date: document.getElementById(`supervision-date-${studentId}`)?.value || "",
+                                  type: document.getElementById(`supervision-type-${studentId}`)?.value || "onsite",
+                                  position: document.getElementById(`supervision-position-${studentId}`)?.value || "",
+                                  project: document.getElementById(`supervision-project-${studentId}`)?.value || "",
+                                }
                               );
                             }}
                             className="md:w-32 bg-[#800000] hover:bg-black text-white font-black text-xs px-4 py-3 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
