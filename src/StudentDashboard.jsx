@@ -31,6 +31,16 @@ import {
   ShieldCheck,
   UserCog,
 } from "lucide-react";
+const getRequestSubmittedAt = (item) => item?.created_at || item?.submitted_at || item?.application_date || item?.createdAt || item?.submittedAt || null;
+const formatRequestSubmittedAt = (item) => {
+  const value = getRequestSubmittedAt(item);
+  if (!value) return "ไม่พบข้อมูลวันที่และเวลาที่ยื่น";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "ไม่พบข้อมูลวันที่และเวลาที่ยื่น";
+  return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(date) + " น.";
+};
+
+
 
 // ============================================================
 // CONFIGURATION
@@ -1526,7 +1536,7 @@ const StudentApplication = () => {
       <button className="px-6 py-3 bg-[#800000] text-white rounded-xl font-bold disabled:opacity-40" disabled={active||!companyId||!position.trim()||loading} onClick={()=>setConfirm(true)}>ยื่นคำร้อง</button>
     </div>
     <div className="bg-white p-6 rounded-3xl border space-y-4"><div className="flex justify-between items-center gap-2"><h3 className="font-black">ประวัติคำร้อง (ล่าสุดก่อน)</h3><select aria-label="กรองสถานะ" className="p-2 border rounded-xl" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">ทั้งหมด</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติ</option><option value="rejected">ปฏิเสธ</option><option value="cancelled">ยกเลิก</option></select></div>
-      {loadingData?<LoadingBox/>:sorted.length===0?<p>ไม่มีคำร้องในรายการนี้</p>:sorted.map(a=><div key={a.application_id||a.id} className="p-4 rounded-2xl border bg-gray-50"><div className="flex justify-between gap-2"><strong>{a.company_name||"-"}</strong><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta(a.status)[1]}`}>{statusMeta(a.status)[0]}</span></div><p className="text-sm">ตำแหน่ง: {a.position||"ไม่ระบุ"}</p><p className="text-xs text-gray-500">คำร้อง #{a.application_id||a.id} · ยื่นเมื่อ {formatDate(a.created_at)}</p>{a.status==="pending"&&<button className="mt-2 text-red-700 text-sm underline" onClick={()=>cancel(a.application_id||a.id)}>ยกเลิกคำร้อง</button>}</div>)}
+      {loadingData?<LoadingBox/>:sorted.length===0?<p>ไม่มีคำร้องในรายการนี้</p>:sorted.map(a=><div key={a.application_id||a.id} className="p-4 rounded-2xl border bg-gray-50"><div className="flex justify-between gap-2"><strong>{a.company_name||"-"}</strong><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusMeta(a.status)[1]}`}>{statusMeta(a.status)[0]}</span></div><p className="text-sm">ตำแหน่ง: {a.position||"ไม่ระบุ"}</p><p className="text-xs text-gray-500">คำร้อง #{a.application_id||a.id} · ยื่นเมื่อ {formatRequestSubmittedAt(a)}</p>{a.status==="pending"&&<button className="mt-2 text-red-700 text-sm underline" onClick={()=>cancel(a.application_id||a.id)}>ยกเลิกคำร้อง</button>}</div>)}
     </div>
     {confirm&&<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true"><div className="bg-white max-w-md w-full rounded-3xl p-7 shadow-2xl"><h3 className="text-xl font-black text-[#800000] mb-3">ยืนยันการยื่นคำร้อง</h3><p>บริษัท: <strong>{selected?.company_name||selected?.name}</strong></p><p>ตำแหน่ง: <strong>{position}</strong></p><p className="text-sm text-gray-500 mt-3">เมื่อยื่นแล้วจะไม่สามารถยื่นคำร้องอื่นได้จนกว่าคำร้องนี้จะถูกปฏิเสธหรือยกเลิก</p><div className="flex justify-end gap-3 mt-6"><button className="px-4 py-2 rounded-xl bg-gray-100" onClick={()=>setConfirm(false)}>กลับไปแก้ไข</button><button className="px-4 py-2 rounded-xl bg-[#800000] text-white" onClick={apply}>ยืนยันส่งคำร้อง</button></div></div></div>}
   </div>;
@@ -2345,6 +2355,8 @@ const CoordinatorManagement = ({ activeTab }) => {
                     บริษัท
                   </th>
 
+                  <th className="pb-3 pr-4">วันที่และเวลาที่ยื่น</th>
+
                   {/* สถานะ */}
 
                   <th className="pb-3 pr-4 text-center">
@@ -2367,7 +2379,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="py-12 text-center text-gray-400"
                     >
                       กำลังโหลดข้อมูลคำร้อง...
@@ -2378,7 +2390,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="py-12 text-center"
                     >
 
@@ -2472,6 +2484,10 @@ const CoordinatorManagement = ({ activeTab }) => {
                               {companyName}
                             </div>
 
+                          </td>
+
+                          <td className="py-4 pr-4 text-xs text-gray-600 whitespace-nowrap">
+                            {formatRequestSubmittedAt(application)}
                           </td>
 
                           {/* STATUS */}
