@@ -1480,8 +1480,6 @@ const MyTeacher = () => {
 const StudentApplication = () => {
   const [companies, setCompanies] = useState([]);
   const [applications, setApplications] = useState([]);
-  const [requestFilter, setRequestFilter] = useState("all");
-  const [requestSearch, setRequestSearch] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [position, setPosition] = useState("");
   const [filter, setFilter] = useState("all");
@@ -1834,7 +1832,7 @@ const CoordinatorManagement = ({ activeTab }) => {
           data = [response.data];
         }
 
-        setApplications([...data].sort((a,b) => (Date.parse(b.created_at || 0) || 0) - (Date.parse(a.created_at || 0) || 0) || (b.application_id || b.id || 0) - (a.application_id || a.id || 0)));
+        setApplications(data);
       } catch (error) {
         console.error(
           "Fetch Applications Error:",
@@ -1990,11 +1988,19 @@ const CoordinatorManagement = ({ activeTab }) => {
         return;
       }
 
-      const reason = window.prompt("กรุณาระบุเหตุผลที่ปฏิเสธคำร้อง (จำเป็น)");
-      if (reason === null) return;
-      if (!reason.trim()) { alert("กรุณากรอกเหตุผล"); return; }
+      const confirmReject =
+        window.confirm(
+          "คุณต้องการปฏิเสธคำร้องนี้ใช่หรือไม่?"
+        );
+
+      if (!confirmReject) {
+        return;
+      }
+
       try {
-        await api.put(`/applications/${applicationId}/reject`, {reason: reason.trim()});
+        await api.put(
+          `/applications/${applicationId}/reject`
+        );
 
         alert(
           "ปฏิเสธคำร้องเรียบร้อยแล้ว"
@@ -2292,12 +2298,6 @@ const CoordinatorManagement = ({ activeTab }) => {
 
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-4">
-            <input aria-label="ค้นหาคำร้อง" value={requestSearch} onChange={e=>setRequestSearch(e.target.value)} placeholder="ค้นหาชื่อนักศึกษา / บริษัท / รหัส" className="border rounded-xl p-2 flex-1 min-w-48" />
-            <select aria-label="กรองสถานะ" value={requestFilter} onChange={e=>setRequestFilter(e.target.value)} className="border rounded-xl p-2">
-              <option value="all">ทุกสถานะ</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="cancelled">ยกเลิก</option>
-            </select>
-          </div>
           {/* ERROR */}
 
           {error && (
@@ -2332,9 +2332,6 @@ const CoordinatorManagement = ({ activeTab }) => {
                     บริษัท
                   </th>
 
-                  <th className="pb-3 pr-4">ตำแหน่งฝึกงาน</th>
-                  <th className="pb-3 pr-4">วันที่และเวลาที่ยื่น</th>
-                  <th className="pb-3 pr-4">เหตุผลปฏิเสธ</th>
                   {/* สถานะ */}
 
                   <th className="pb-3 pr-4 text-center">
@@ -2394,7 +2391,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 ) : (
 
-                  applications.filter(item => (requestFilter === "all" || getApplicationStatus(item) === requestFilter) && [getStudentName(item),getStudentId(item),getCompanyName(item)].join(" ").toLowerCase().includes(requestSearch.toLowerCase())).map(
+                  applications.map(
                     (
                       application,
                       index
@@ -2464,9 +2461,6 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                           </td>
 
-                          <td className="py-4 pr-4">{application.position || "-"}</td>
-                          <td className="py-4 pr-4 whitespace-nowrap">{application.created_at ? new Date(application.created_at).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"}) : "-"}</td>
-                          <td className="py-4 pr-4">{application.rejection_reason || "-"}</td>
                           {/* STATUS */}
 
                           <td className="py-4 pr-4 text-center">
@@ -3053,18 +3047,13 @@ const AdvisorManagement = ({
         return;
       }
 
-      const date = document.getElementById(`visit-date-${studentId}`)?.value;
-      const type = document.getElementById(`visit-type-${studentId}`)?.value;
-      const position = document.getElementById(`visit-position-${studentId}`)?.value?.trim();
-      const project = document.getElementById(`visit-project-${studentId}`)?.value?.trim();
-      if (!date || !position || !project) { alert("กรุณากรอกวันที่ ตำแหน่ง และโปรเจกต์"); return; }
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
         student_id: String(studentId),
         company_id: Number(companyId),
         date,
-        type,
-        position,
-        project,
+        type: "onsite",
         note: cleanNote,
         status: "completed",
       };
@@ -3331,12 +3320,6 @@ const AdvisorManagement = ({
 
                       <div className="space-y-2">
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <label className="text-xs font-bold">วันที่นิเทศ<input id={`visit-date-${studentId}`} type="date" required className="block w-full border rounded-xl p-3 mt-1" /></label>
-                          <label className="text-xs font-bold">รูปแบบการนิเทศ<select id={`visit-type-${studentId}`} className="block w-full border rounded-xl p-3 mt-1"><option value="onsite">Onsite</option><option value="online">Online</option></select></label>
-                          <label className="text-xs font-bold">ตำแหน่งฝึกงาน<input id={`visit-position-${studentId}`} className="block w-full border rounded-xl p-3 mt-1" placeholder="ตำแหน่ง" /></label>
-                          <label className="text-xs font-bold">โปรเจกต์นักศึกษา<input id={`visit-project-${studentId}`} className="block w-full border rounded-xl p-3 mt-1" placeholder="ชื่อโปรเจกต์" /></label>
-                        </div>
                         <label className="text-xs font-black text-gray-500">
                           ผลการตรวจนิเทศและข้อเสนอแนะ
                         </label>
