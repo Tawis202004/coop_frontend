@@ -2140,7 +2140,20 @@ const CoordinatorManagement = ({ activeTab }) => {
               )
             ).toLowerCase();
 
-          return (
+          // แสดงเฉพาะคำร้องที่ยังใช้งาน และเรียงจากวันที่ยื่นล่าสุด
+    const visibleApplications = applications
+      .filter((item) => !["rejected", "reject", "denied", "cancelled", "canceled"].includes(
+        String(getApplicationStatus(item)).toLowerCase()
+      ))
+      .sort((a, b) => {
+        const submittedAt = (item) => Date.parse(
+          item.created_at || item.submitted_at || item.application_date || item.createdAt || ""
+        ) || 0;
+        return submittedAt(b) - submittedAt(a) ||
+          Number(b.application_id || b.id || 0) - Number(a.application_id || a.id || 0);
+      });
+
+    return (
             status ===
               "approved" ||
             status ===
@@ -2361,7 +2374,7 @@ const CoordinatorManagement = ({ activeTab }) => {
                     </td>
                   </tr>
 
-                ) : applications.length === 0 ? (
+                ) : visibleApplications.length === 0 ? (
 
                   <tr>
                     <td
@@ -2391,7 +2404,7 @@ const CoordinatorManagement = ({ activeTab }) => {
 
                 ) : (
 
-                  applications.map(
+                  visibleApplications.map(
                     (
                       application,
                       index
